@@ -2,8 +2,8 @@
 Files from Machine Learning class
 
 
-Week 1 - Introduction to Machine Learning
-Week 2 - Linear Regression Techniques and KNN
+Week 1 - Introduction to Machine Learning \\
+Week 2 - Linear Regression Techniques and KNN \\
 Week 3 - Classification Techniques
 Week 4 - Cross-Validation
 Week 5 - Feature Engineering

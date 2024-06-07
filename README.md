@@ -9,6 +9,6 @@ Weekly Topics
 * Week 5 - Feature Engineering
 * Week 6 - Regularization Techniques (LASSO)
 * Week 7 - Class Imbalance, Decision Trees
-* Week 8 - Tree-Based Ensemble Methods
+* Week 8 - Tree-Based Ensemble Methods (Bagging, RF, Boosting)
 * Week 9 - SVMs, Summary of Supervised Learning, Practice
 * Week 10 - Unsupervised Learning

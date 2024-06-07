@@ -1,0 +1,70 @@
+---
+title: "Machine Learning - Quiz 1"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\vspace{0.5cm}
+
+\begin{center}
+\textbf{Name:} \underline{\hspace{10cm}} 
+\end{center}
+
+\vspace{0.5cm}
+
+
+**Directions:** Write complete solutions with enough detail so that your reasoning is clear to Prof. Chakraborty. 
+
+
+## Question 1 
+
+For each of the following scenarios,
+
+(i) identify if it is a supervised or an unsupervised learning problem,
+
+(ii) if applicable, identify if it is a classification or a regression problem, and 
+
+(iii) mention the appropriate values of $n$ and $p$. 
+
+
+<!-- **Scenario A**: Examine a collection of 649 emails to discover if an email would be "spam" or "not-spam" based on 3 characteristics (number of words, number of attachments, if an image is attached or not). -->
+
+**Scenario A**: Investigate information about 867 cancer patients on their age, tumor size, clump thickness of the tumor, uniformity of cell size, to decide if a tumor would be malignant or benign. 
+
+**Scenario B**: Examine data on the income and years of education of 1,000 adults in a neighborhood and build a model to predict the income from years of education.
+
+
+\vspace{5cm}
+
+
+## Question 2
+
+Prof. Chakraborty implemented the gradient descent technique with a learning rate of 0.1 to minimize the mean squared error of a regression problem. However, after running the algorithm for 100 iterations, he found that the loss values are increasing. What would be your suggestion to him in terms of the adjusting the learning rate? EXPLAIN your answer.
+
+\newpage
+
+## Question 3 
+
+Prof. Chakraborty built two ML models of different complexities - Model A and Model B, and evaluated their training and test losses. The loss curves are shown below.
+
+```{r , echo=FALSE,  fig.align='center', out.width = '50%'}
+knitr::include_graphics("Loss_curves.jpg")
+```
+
+(a) Which model is overfitting? Which model is underfitting? EXPLAIN your choices.
+
+(b) Compare the bias and variance of each model. Which model seems to have the higher bias? Which model seems to have the higher variance? EXPLAIN. 
+
+
+
+
+
+
+
+
+
+
+

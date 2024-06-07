@@ -1,0 +1,247 @@
+---
+title: "Machine Learning - Quiz 3"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(caret)
+library(recipes)
+```
+
+\vspace{0.5cm}
+
+\begin{center}
+\textbf{Name:} \underline{\hspace{10cm}} 
+\end{center}
+
+\vspace{0.5cm}
+
+
+**Directions:** Write complete solutions with enough detail so that your reasoning is clear to Prof. Chakraborty. 
+
+## Question 1  [5 points]
+
+Consider the toy dataset below.
+
+<center>
+| Obs. | $Y$ | $X$ | 
+|------|-------|-------|
+| 1 | A | 1.0 |
+| 2 | A | 1.8 |
+| 3 | B | 3.2 |
+| 4 | A | 4 |
+| 5 | B | 5 |
+| 6 | B | 5.8 |
+</center>
+
+
+We want to evaluate a KNN classifier with $K=3$ using Leave-One-Out Cross Validation (LOOCV). **Obtain the cross-validation accuracy.** 
+
+[Hint: For each round of the LOOCV process, one observation is left out as the validation fold and the model is built on all the other observations.]
+
+\newpage
+
+
+## Question 2  
+
+Prof. Chakraborty was tasked to classify whether a banknote is `authentic` or not ('Yes'-'No' response) based on the following variables measured from banknote images: 
+
+* `variance`, 
+* `skewness`, 
+* `kurtosis`, 
+* `entropy`, and
+* `old` - 'Yes' or 'No'? 
+
+```{r,message=FALSE, echo=FALSE}
+banknote <- readRDS("banknote.rds")
+banknote$authentic <- factor(banknote$authentic, levels = c("Yes", "No"))
+```
+
+\vspace{0.3cm}
+
+[Step 1:]{.underline} The following outputs show the results of his data exploration phase.
+
+```{r}
+glimpse(banknote)
+```
+
+\vspace{0.3cm}
+
+```{r}
+summary(banknote)
+```
+
+```{r}
+nearZeroVar(banknote, saveMetrics = TRUE)
+```
+
+\vspace{0.3cm}
+
+[Step 2:]{.underline} He then did a 80-20 split of the data into training (1098 observations) and test sets (274 observations).
+
+```{r, echo=FALSE}
+set.seed(333)
+
+train_index <- createDataPartition(banknote$authentic, p = 0.8, list = FALSE) 
+
+banknote_train <- banknote[train_index,]     # training set
+
+banknote_test <- banknote[-train_index,]    # test set
+```
+
+\newpage
+
+[Step 3:]{.underline} The next step was to create the blueprint and obtain the baked train and test datasets. 
+
+**What blueprint steps should he use for this dataset? Provide a brief explanation of each step. Also, mention the order in which the blueprint steps should be implemented.  [5 points]**
+
+You don't need to write any code to answer this question, but provide sufficient explanation of your blueprint steps.
+
+```{r, echo=FALSE}
+set.seed(333)
+
+# set up recipe
+banknote_recipe <- recipe(authentic ~. , data = banknote_train)   
+
+
+# create blueprint
+blueprint <- banknote_recipe %>% 
+  step_impute_mean(all_numeric()) %>%       # impute continuous numeric features by mean
+  step_center(all_numeric()) %>%            # center (subtract mean) numeric features
+  step_scale(all_numeric()) %>%                 # scale (divide by standard deviation) numeric features
+  step_dummy(all_nominal_predictors(), one_hot = FALSE)
+
+# estimate feature engineering parameters based on training data
+prepare <- prep(blueprint, data = banknote_train)
+
+
+# apply blueprint to training data
+baked_train <- bake(prepare, new_data = banknote_train)  
+
+# summary(baked_train)
+
+
+# apply blueprint to test data
+baked_test <- bake(prepare, new_data = banknote_test)
+
+# summary(baked_test)
+```
+
+\vspace{10cm}
+<!-- \newpage -->
+
+[Step 4:]{.underline} With the appropriate blueprint, he then implemented 5-fold CV repeated 1 time for each of the models below using the **Accuracy** metric.
+
+* Logistic regression;
+
+* KNN classifier with a grid of $K = 1, 11, 21, 31, 41, 51$.
+
+The following results show the output of the CV process.
+
+\vspace{0.3cm}
+
+```{r, echo=FALSE}
+set.seed(333)
+
+# CV specifications 
+cv_specs <- trainControl(method = "repeatedcv",
+                         number = 5,
+                         repeats = 1)
+
+
+# CV with logistic regression
+logistic_cv <- train(blueprint,
+                     data = banknote_train, 
+                     method = "glm",
+                     family = "binomial",
+                     trControl = cv_specs,
+                     metric = "Accuracy")
+
+
+# CV with KNN classifier
+k_grid <- expand.grid(k = seq(1, 51, by = 10))
+
+knn_cv <- train(blueprint,
+                data = banknote_train, 
+                method = "knn",
+                trControl = cv_specs,
+                tuneGrid = k_grid,
+                metric = "Accuracy")
+```
+
+```{r}
+logistic_cv$results   # CV results of logistic regression model 
+```
+
+\vspace{0.3cm}
+
+```{r}
+knn_cv$results   # CV results of KNN
+```
+
+\newpage
+
+**What is the optimal value of $K$ for the KNN classifier? Which model performs best in this context? Explain your choice.  [3 points]** 
+
+\vspace{5cm}
+
+**Approximately, how many observations are included in the validation fold and training fold at each round of this CV process? Show work to explain your answer.  [2 points]**
+
+\vspace{5cm}
+
+[Step 5:]{.underline} Finally, with the optimal model, he obtained class label predictions on the test set (using a threshold of 0.5). The corresponding confusion matrix is shown below.
+
+```{r, echo=FALSE}
+final_model <- knn3(authentic ~ ., data = baked_train, k = knn_cv$bestTune$k)    # build final model
+
+final_model_class_preds <- predict(final_model, newdata = baked_test, type = "class")     # class label predictions
+```
+
+```{r, echo=FALSE}
+table(predicted = final_model_class_preds, reference = baked_test$authentic)
+```
+
+**Calculate the test set accuracy.  [2 points]**
+
+\vspace{3cm}
+
+\newpage
+
+
+
+
+\newpage
+
+## Question 3  [3 points]
+
+Indicate which of (i) through (iv) is correct. **Justify your answer in terms of the bias-variance trade-off and the ideas of overfitting and underfitting.**
+
+The LASSO (regularization method), relative to least squares (ordinary regression), is:
+
+(i) More flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.
+
+(ii) More flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.
+
+(iii) Less flexible and hence will give improved prediction accuracy when its increase in bias is less than its decrease in variance.
+
+(iv) Less flexible and hence will give improved prediction accuracy when its increase in variance is less than its decrease in bias.
+
+
+
+
+\vspace{7cm}
+
+
+
+
+
+
+
+
+
+
+
+
+

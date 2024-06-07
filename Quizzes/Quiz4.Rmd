@@ -1,0 +1,172 @@
+---
+title: "Machine Learning - Quiz 4"
+author: "Your name"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(caret)
+library(recipes)
+library(rpart)
+library(ipred)
+library(e1071)
+library(ranger)
+library(kernlab)
+```
+
+### ----------------------------------------------------------------------------
+
+## Question 1  
+
+We will work with the `titanic.rds` dataset which contains information on Titanic passengers. Please download the dataset from Canvas, upload it to Posit Cloud, and load it using the following code.
+
+```{r}
+titanic <- readRDS("titanic.rds")    # load dataset
+```
+
+
+The variables in the dataset are
+
+* `pclass` (passenger ticket class - '1st', '2nd', '3rd')
+* `survived` ('Yes' or 'No')
+* `sex` ('male' or 'female')
+* `age` (passenger age in years)
+* `sibsp` (number of siblings or spouses aboard)
+* `parch` (number of parents or children aboard)
+
+
+The task is to predict `survived` using the rest of the variables in the dataset. Compare the performance (in terms of **Accuracy**) of the following models:
+
+* a single classification tree;
+
+* a random forest model;
+
+* an SVM with linear kernel (support vector classifier), and
+
+* an SVM with radial kernel.
+
+
+**Perform the necessary tasks.**
+
+* Use a 80-20 split.
+
+* Use 5-fold CV with 1 repeat.
+
+* Parameter grids are given below.
+
+```{r}
+# use tuneLength = 20 for the single tree
+
+# for random forest
+param_grid_rf <- expand.grid(mtry = seq(1, 5, 1),    
+                          splitrule = "gini",
+                          min.node.size = 2)
+
+
+# for SVM with linear kernel 
+param_grid_linear <- expand.grid(C = c(0.001, 0.1, 1, 5, 10, 100))    
+
+
+# for SVM with radial kernel
+param_grid_radial <- expand.grid(sigma = c(0.5, 1, 1.5, 2),
+                                 C = c(0.001, 0.1, 1, 5, 10, 100))    
+
+```
+
+
+**Create the confusion matrix with the test set and report the test set accuracy**.
+
+### ----------------------------------------------------------------------------
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+
+```{r}
+set.seed(052824)
+
+
+```
+### ----------------------------------------------------------------------------

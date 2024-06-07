@@ -1,0 +1,183 @@
+---
+title: "Gradient Descent for Multiple Linear Regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Exploratory Data Analysis (EDA)
+
+```{r}
+house_prices <- readRDS("house_prices.rds")   # load dataset
+```
+
+
+```{r}
+library(GGally)
+
+ggpairs(data = house_prices)    # correlation plot/matrix
+```
+
+
+#### ---------------------------------------------------------------------------
+### Multiple Linear Regression in R
+
+```{r}
+
+mlr_model <- lm(price ~ size + num_bedrooms, data = house_prices)   # build model
+
+mlr_model    # display parameter estimates
+
+```
+
+
+```{r}
+# obtain prediction for a given values of predictors
+
+predict.lm(mlr_model, newdata = data.frame(size = 2000, num_bedrooms = 3))   # obtain prediction
+
+```
+
+
+```{r}
+# MSE
+
+mean(mlr_model$residuals^2)
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Implement Gradient Descent with Original Dataset
+
+```{r}
+# define variables
+
+x = outlets$population   # input/predictor
+y = outlets$profit       # response
+```
+
+
+```{r}
+# define necessary functions
+
+# calculates y-hats
+predict <- function(x, b0, b1)
+{
+  return(b0 + b1 * x)
+}
+
+
+# calculates MSE (loss/cost)
+loss_mse <- function(predictions, y)
+{
+  residuals = predictions - y
+  return(mean(residuals ^ 2))
+}
+
+
+# calculates the gradients with respect to b0 and b1
+gradient <- function(x, y, predictions)
+{
+  dinputs = predictions - y
+  db1 = 2 * mean(x * dinputs)
+  db0 = 2 * mean(dinputs)
+  
+  return(list("db1" = db1, "db0" = db0))
+}
+
+```
+
+
+```{r}
+# starting values
+b0 =  0
+b1 =  0
+
+# specify learning rate (also called step size)
+learning_rate = 0.1
+
+# specify number of iterations of the algorithm
+niter = 50
+
+# define objects to store results
+loss_values =  rep(NA, niter)
+b0_values = rep(NA, niter)
+b1_values = rep(NA, niter)
+```
+
+
+```{r}
+# gradient descent algorithm
+
+for (epoch in 1:niter)
+{
+  
+  predictions = predict(x, b0, b1)    # obtain predictions
+  
+  loss = loss_mse(predictions, y)     # calculate MSE
+  
+  gradients = gradient(x, y, predictions)   # obtain gradients
+  db0 = gradients$db0   # gradient with respect to b0
+  db1 = gradients$db1   # gradient with respect to b1
+  
+  
+  b0 = b0 - db0 * learning_rate     # update b0
+  b1 = b1 - db1 * learning_rate     # update b1
+  
+  
+  # store resulting values to track progress
+  loss_values[epoch] = loss
+  b0_values[epoch] = b0
+  b1_values[epoch] = b1
+  
+  
+  # display loss to track progress
+  if (epoch %% 10 == 0){print(paste0("Epoch: ",epoch, ", Loss: ", round(loss, 5)))}
+
+}
+
+```
+
+
+```{r}
+# display results as a graph
+
+results <- data.frame(epoch = 1:niter, loss = loss_values, b0 = b0_values, b1 = b1_values)
+
+ggplot(data = results, aes(x = epoch, y = loss)) + 
+  geom_line(color="steelblue") + 
+  theme_classic()
+```
+
+
+```{r}
+# display parameter estimates after algorithm
+
+b0    # estimated intercept   
+ 
+b1    # estimated slope
+```
+
+
+
+#### ---------------------------------------------------------------------------
+### Implement Gradient Descent with Scaled Predictors
+
+```{r}
+# dataset with scaled predictors
+
+house_prices_scaled <- data.frame(size_scaled = scale(house_prices$size),
+                                  num_bedrooms_scaled = scale(house_prices$num_bedrooms),
+                                  price = house_prices$price)
+```
+
+
+
+
+
+#### ---------------------------------------------------------------------------

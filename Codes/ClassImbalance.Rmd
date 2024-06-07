@@ -1,0 +1,480 @@
+---
+title: "Remedies for Class Imbalance"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Effect of Class Imbalance: attrition dataset
+
+```{r}
+attrition <- readRDS("attrition.rds")
+```
+
+```{r}
+table(attrition$Attrition)
+
+prop.table(table(attrition$Attrition))
+```
+
+```{r}
+levels(attrition$Attrition)
+
+attrition$Attrition <- factor(attrition$Attrition, levels = c("Yes", "No"))
+levels(attrition$Attrition)
+```
+
+```{r}
+# no missing entries
+
+# no zv/nzv features
+
+# all ordinal features are in order except 'BusinessTravel'
+
+# reorder levels of 'BusinessTravel'
+
+attrition$BusinessTravel <- factor(attrition$BusinessTravel, levels = c("Non-Travel", "Travel_Rarely", "Travel_Frequently"))
+
+levels(attrition$BusinessTravel)
+```
+
+```{r}
+# split original data into training and test sets
+
+set.seed(050724)
+
+train_index <- createDataPartition(attrition$Attrition, p = 0.7, list = FALSE)
+
+attrition_train <- attrition[train_index, ]
+
+attrition_test <- attrition[-train_index, ]
+```
+
+```{r}
+# split test data further into evaluation and test sets
+
+set.seed(050724)
+
+eval_index <- createDataPartition(attrition_test$Attrition, p = 0.3, list = FALSE)
+
+attrition_eval <- attrition_test[eval_index, ]
+
+attrition_test <- attrition_test[-eval_index, ]
+```
+
+```{r}
+prop.table(table(attrition_train$Attrition))
+
+prop.table(table(attrition_eval$Attrition))
+
+prop.table(table(attrition_test$Attrition))
+```
+
+```{r}
+# create recipe, blueprint, prepare, and bake
+
+attrition_recipe <- recipe(formula = Attrition ~ ., data = attrition_train)   # sets up the type and role of variables
+
+
+blueprint <- attrition_recipe %>%
+  
+  # convert ordinal categorical features to integers
+  step_integer(BusinessTravel, Education, EnvironmentSatisfaction, JobInvolvement,
+               JobSatisfaction, PerformanceRating, RelationshipSatisfaction,
+               WorkLifeBalance) %>%
+  
+  # center and scale features
+  step_center(all_numeric()) %>%
+  step_scale(all_numeric()) %>%
+  
+  # create dummy variables for nominal categorical features
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = FALSE)
+
+
+prepare <- prep(blueprint, data = attrition_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = attrition_train)   # apply the blueprint to training set 
+
+baked_eval <- bake(prepare, new_data = attrition_eval)     # apply the blueprint to evaluation set 
+
+baked_test <- bake(prepare, new_data = attrition_test)     # apply the blueprint to test set
+
+```
+
+```{r}
+# perform CV
+
+set.seed(050724)
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5                   , repeats = 1)   # 5-fold CV (1 repeat)
+
+# CV with logistic regression
+
+logistic_cv <- train(blueprint,
+                  data = attrition_train,
+                  method = "glm",
+                  family = "binomial",
+                  trControl = cv_specs,
+                  metric = "Accuracy")    
+
+
+
+# CV with KNN
+
+set.seed(050724)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv <- train(blueprint,
+                  data = attrition_train,
+                  method = "knn",
+                  trControl = cv_specs,
+                  tuneGrid = k_grid,
+                  metric = "Accuracy")
+```
+
+```{r}
+# checking CV results
+
+logistic_cv
+
+knn_cv
+```
+
+```{r}
+# build optimal model and obtain predictions on evaluation set
+
+final_model_logreg <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds_logreg <- predict(object = final_model_logreg, newdata = baked_eval, type = "response")   # probability predictions 
+
+threshold <- 0.5
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Possible Remedy 1: Model Tuning
+
+```{r}
+# perform CV
+
+set.seed(050724)
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1, 
+                         classProbs = TRUE,
+                         summaryFunction = twoClassSummary)
+
+# CV with logistic regression
+
+logistic_cv_1 <- train(blueprint,
+                  data = attrition_train,
+                  method = "glm",
+                  family = "binomial",
+                  trControl = cv_specs,
+                  metric = "Sens")    
+
+
+# CV with KNN
+
+set.seed(050724)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv_1 <- train(blueprint,
+                  data = attrition_train,
+                  method = "knn",
+                  trControl = cv_specs,
+                  tuneGrid = k_grid,
+                  metric = "Sens")
+```
+
+```{r}
+# checking CV results
+
+logistic_cv_1
+
+knn_cv_1
+```
+
+```{r}
+# build optimal model and obtain predictions on evaluation set
+
+final_model_logreg <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds_logreg <- predict(object = final_model_logreg, newdata = baked_eval, type = "response")   # probability predictions
+
+threshold <- 0.5
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Possible Remedy 2: Alternative Cutoffs (thresholds)
+
+```{r}
+# perform CV
+
+set.seed(050724)
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1, 
+                         classProbs = TRUE,
+                         summaryFunction = twoClassSummary)
+
+# CV with logistic regression
+
+logistic_cv_2 <- train(blueprint,
+                  data = attrition_train,
+                  method = "glm",
+                  family = "binomial",
+                  trControl = cv_specs,
+                  metric = "ROC")    
+
+
+# CV with KNN
+
+set.seed(050724)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv_2 <- train(blueprint,
+                  data = attrition_train,
+                  method = "knn",
+                  trControl = cv_specs,
+                  tuneGrid = k_grid,
+                  metric = "ROC")
+```
+
+```{r}
+# checking CV results
+
+logistic_cv_2
+
+knn_cv_2
+```
+
+```{r}
+# build optimal model and obtain predictions on evaluation set
+
+final_model_logreg <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds_logreg <- predict(object = final_model_logreg, newdata = baked_eval, type = "response")   # probability predictions
+
+threshold <- 0.5
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+
+```
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# create ROC curve and compute AUC
+
+library(pROC)
+
+roc_object_logreg <- roc(response = baked_eval$Attrition, predictor = final_model_prob_preds_logreg,
+                         levels = c("No", "Yes"))
+
+plot(roc_object_logreg, col = "red")
+
+auc(roc_object_logreg)
+```
+
+```{r}
+# decide on an appropriate threshold (cutoff)
+
+coords(roc_object_logreg, x = "best", best.method = "closest.topleft")
+
+coords(roc_object_logreg, x = "all")
+```
+
+```{r}
+
+threshold <- 0.8330823	
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Possible Remedy 3: Subsampling
+
+```{r}
+table(attrition_train$Attrition)
+```
+
+```{r}
+upsampledTrain <- upSample(x = attrition_train %>% select(-Attrition),
+                           y = attrition_train$Attrition,
+                           yname = "Attrition")
+
+table(upsampledTrain$Attrition)
+```
+
+```{r}
+downsampledTrain <- downSample(x = attrition_train %>% select(-Attrition),
+                           y = attrition_train$Attrition,
+                           yname = "Attrition")
+
+table(downsampledTrain$Attrition)
+```
+
+
+```{r}
+# perform CV
+
+set.seed(050724)
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1, 
+                         classProbs = TRUE,
+                         summaryFunction = twoClassSummary,
+                         sampling = "up")
+
+# CV with logistic regression
+
+logistic_cv_3 <- train(blueprint,
+                  data = attrition_train,
+                  method = "glm",
+                  family = "binomial",
+                  trControl = cv_specs,
+                  metric = "ROC")    
+
+
+# CV with KNN
+
+set.seed(050724)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv_3 <- train(blueprint,
+                  data = attrition_train,
+                  method = "knn",
+                  trControl = cv_specs,
+                  tuneGrid = k_grid,
+                  metric = "ROC")
+```
+
+```{r}
+# checking CV results
+
+logistic_cv_3
+
+knn_cv_3
+```
+
+```{r}
+# build optimal model and obtain predictions on evaluation set
+
+final_model_logreg <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds_logreg <- predict(object = final_model_logreg, newdata = baked_eval, type = "response")   # probability predictions
+
+threshold <- 0.5
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions 
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+
+```
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# create ROC curve and compute AUC
+
+library(pROC)
+
+roc_object_logreg <- roc(response = baked_eval$Attrition, predictor = final_model_prob_preds_logreg,
+                         levels = c("No", "Yes"))
+
+plot(roc_object_logreg, col = "red")
+
+auc(roc_object_logreg)
+```
+
+```{r}
+# decide on an appropriate threshold (cutoff)
+
+coords(roc_object_logreg, x = "best", best.method = "closest.topleft")
+
+coords(roc_object_logreg, x = "all")
+```
+
+```{r}
+
+threshold <- 0.8330823	
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class label predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_eval$Attrition)
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Final Model and Test Set Predictions
+
+```{r}
+# build optimal model and obtain predictions on test set
+
+final_model_logreg <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds_logreg <- predict(object = final_model_logreg, newdata = baked_test, type = "response")   # probability predictions 
+
+threshold <- 0.8330823		
+
+final_model_class_preds_logreg <- factor(ifelse(final_model_prob_preds_logreg > threshold, "No", "Yes"))   # class predictions
+
+
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds_logreg, reference = baked_test$Attrition)
+```
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# create ROC curve and compute AUC
+
+library(pROC)
+
+roc_object_logreg <- roc(response = baked_test$Attrition, predictor = final_model_prob_preds_logreg,
+                         levels = c("No", "Yes"))
+
+plot(roc_object_logreg, col = "red")
+
+auc(roc_object_logreg)
+```
+
+
+#### ---------------------------------------------------------------------------

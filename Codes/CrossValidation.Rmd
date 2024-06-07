@@ -1,0 +1,289 @@
+---
+title: "Cross-Validation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Ames Housing Dataset
+
+```{r,message=FALSE}
+ames <- readRDS("AmesHousing.rds")   # load dataset
+```
+
+```{r}
+library(tidyverse)
+
+# we won't use the entire dataset now (that's for later)
+# select the variables to work with for this class (04/18)
+
+ames <- ames %>% select(Sale_Price, Garage_Area, Year_Built) 
+```
+
+
+#### ---------------------------------------------------------------------------
+### Ames Housing Dataset: Exploratory Data Analysis (EDA)
+
+```{r}
+summary(ames)   # summary of the variables
+```
+
+```{r, fig.align='center'}
+library(GGally)
+
+ggpairs(ames)   # correlation plot
+```
+
+
+#### ---------------------------------------------------------------------------
+### Ames Housing Dataset: Data Splitting
+
+```{r}
+library(caret)  # load library
+```
+
+
+```{r, message = FALSE}
+# split data
+
+set.seed(041824)  # fix the random number generator for reproducibility
+
+# split available data into training and test datasets
+train_index <- createDataPartition(y = __________, p = __________, list = FALSE) 
+
+ames_train <- ames[train_index,]   # training data
+
+ames_test <- ames[-train_index,]   # test data
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Ames Housing Dataset: K-Fold CV to Compare Models
+
+```{r}
+# define CV specifications
+
+cv_specs <- trainControl(method = __________,   # CV method
+                         number = __________,    # number of folds
+                         repeats = __________)     # number of repeats
+```
+
+
+```{r}
+# $k$-fold CV with the first model
+
+set.seed(041824)
+
+m1 <- train(form = __________,    # specify model
+            data = __________,   # specify dataset
+            method = __________,       # specify type of model
+            trControl = __________,   # CV specifications
+            metric = __________)   # metric to evaluate model
+```
+
+```{r}
+m1   # summary of CV
+```
+
+```{r}
+m1$results  # estimate and variability of metrics
+```
+
+```{r}
+m1$resample   # results from all folds, all repeats
+```
+
+
+```{r}
+# $k$-fold CV with the second model
+
+set.seed(041824)
+
+m2 <- train(form = __________,  
+            data = __________,          
+            method = __________,              
+            trControl = __________,       
+            metric = __________)           
+
+m2
+
+m2$results
+```
+
+
+```{r}
+# $k$-fold CV with the third model
+
+set.seed(041824)
+
+m3 <- train(form = __________,  
+            data = __________,
+            method = __________,
+            trControl = __________,
+            metric = __________)
+
+m3
+
+m3$results
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# compare CV results for different models
+
+# create data frame to plot results
+df <- data.frame(model_number = 1:3, RMSE = c(m1$results$RMSE,  
+                                             m2$results$RMSE,
+                                             m3$results$RMSE))
+
+# plot results from CV
+ggplot(data = df, aes(x = model_number, y =  RMSE)) +   
+  geom_point() + geom_line()
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Ames Housing Dataset: Choosing Optimal Model and Test Set Predictions
+
+```{r}
+# after choosing final (optimal) model, refit final model using ALL training data
+
+m3$finalModel    # final model
+```
+
+
+```{r}
+# obtain estimate of prediction error from test data
+
+final_model_preds <- predict(object = __________, newdata = __________)   # obtain predictions on test data
+
+pred_error_est <- sqrt(mean((ames_test$Sale_Price - final_model_preds)^2))    # calculate RMSE from test data
+
+pred_error_est   # test set RMSE
+```
+
+
+#### ----------------------------------------------------------------------------------------------------------------
+
+
+#### ---------------------------------------------------------------------------
+### Auto Dataset
+
+```{r,message=FALSE}
+library(ISLR2)  # load library
+
+data("Auto")   # load dataset
+```
+
+
+```{r}
+# select the variables to work with
+
+Auto <- Auto %>% select(mpg, horsepower)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Auto Dataset: Exploratory Data Analysis
+
+```{r}
+summary(Auto)   # summary of the variables
+```
+
+
+```{r, fig.align='center', fig.height=4, fig.width=4}
+library(GGally)
+ggpairs(Auto)    # correlation plot
+```
+
+
+#### ---------------------------------------------------------------------------
+### Auto Dataset: Data Splitting
+
+```{r, message = FALSE}
+# split data
+
+set.seed(041824)  # fix the random number generator for reproducibility
+
+library(caret)  # load library
+
+# split available data into 80% training and 20% test datasets
+train_index <- createDataPartition(y = __________, p = __________, list = FALSE) 
+
+Auto_train <- __________[__________,]   # training data
+
+Auto_test <- __________[__________,]   # test data
+```
+
+
+#### ---------------------------------------------------------------------------
+### Auto Dataset: K-Fold CV to Tune Hyperparameter for KNN
+
+```{r}
+# define CV specifications
+
+cv_specs <- trainControl(method = __________,   # CV method
+                         number = __________,    # number of folds
+                         repeats = __________)     # number or repeats
+```
+
+
+```{r}
+# specify grid of 'k' values to search over
+
+k_grid <- expand.grid(k = seq(1, 100, by = 1))
+```
+
+
+```{r}
+# train the KNN model using CV to find optimal 'k'
+
+set.seed(041824)
+
+knn_cv <- train(form = __________, 
+                 data = __________, 
+                 method = __________,
+                 trControl = __________, 
+                 tuneGrid = __________,
+                 metric = __________)
+```
+
+
+```{r}
+knn_cv   # CV results
+```
+
+
+```{r, fig.align='center'}
+ggplot(knn_cv)   # plot CV results for different 'k'
+```
+
+
+#### ---------------------------------------------------------------------------
+### Auto Dataset: Choosing Optimal Model and Test Set Predictions
+
+```{r}
+# build final model with optimal 'k' chosen from CV
+
+knn_cv$bestTune     # optimal value of K
+
+knn_cv$finalModel   # final model
+```
+
+
+```{r}
+# obtain predictions on test data
+final_model_preds <- predict(object = __________, newdata = __________)
+
+# estimate test set prediction error
+sqrt(mean((Auto_test$mpg - final_model_preds)^2))    # test set RMSE
+```
+
+
+#### ---------------------------------------------------------------------------

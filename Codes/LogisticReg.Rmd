@@ -1,0 +1,117 @@
+---
+title: "Logistic Regression"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Load dataset
+
+```{r, message=FALSE}
+library(ISLR2)   # load library
+
+data("Default")   # load dataset
+```
+
+```{r}
+head(Default)   # print first six observations
+```
+
+```{r, message=FALSE}
+table(Default$default)   # class frequencies
+```
+
+```{r}
+
+# only if you work with a function that requires numerical values rather than categorical factors
+
+Default$default_id <- ifelse(Default$default == "Yes", 1, 0)     # create 0/1 variable
+
+head(Default, 10)
+
+```
+
+
+#### ---------------------------------------------------------------------------
+### Logistic Regression
+
+```{r, message=FALSE}
+
+logregfit <- glm(formula = ____________________, data = __________, family = __________)   # fit logistic regression model
+
+summary(__________)   # obtain results
+
+```
+
+
+```{r}
+
+predict(object = __________, newdata = __________)   # obtain individual log-odds predictions
+
+```
+
+
+```{r}
+
+predict(object = __________, newdata = __________, type = __________)   # obtain individual probability predictions
+
+```
+
+
+```{r}
+
+logreg_prob_preds <- predict(object = __________, newdata = __________, type = __________)   # obtain probability predictions for all observations
+
+```
+
+
+```{r}
+
+threshold <- 0.5   # set threshold
+
+logreg_class_preds <- factor(ifelse(__________ > threshold, "Yes", "No"))   # obtain class predictions for all
+
+```
+
+
+```{r}
+# create confusion matrix
+
+# use the following code only when all predictions are from the same class
+# levels(logreg_class_preds) = c("No", "Yes")
+
+confusionMatrix(data = __________, reference = __________, positive = __________)
+
+```
+
+
+```{r, fig.align='center', fig.width=4, fig.height=4}
+
+# ROC curve
+
+library(pROC)   # load library
+
+# create object for ROC curve 
+roc_object <- roc(response = __________, predictor = __________)
+
+# plot ROC curve
+plot(roc_object, col = "red")
+
+```
+
+
+```{r}
+
+# obtain AUC
+auc(roc_object)
+
+```
+
+
+#### ---------------------------------------------------------------------------

@@ -1,0 +1,67 @@
+---
+title: "Comparing Linear Regression Models"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Exploratory Data Analysis (EDA)
+
+```{r}
+house_prices <- readRDS("house_prices.rds")   # load dataset
+```
+
+
+```{r}
+library(GGally)
+
+ggpairs(data = house_prices)    # correlation plot/matrix
+```
+
+
+#### ---------------------------------------------------------------------------
+### Build Three Models and Compare
+
+```{r}
+
+fit1 <- lm(price ~ num_bedrooms, data = house_prices)   # build model
+
+summary(fit1)    # display model summary
+
+mean(fit1$residuals^2)   # MSE
+
+```
+
+
+```{r}
+
+fit2 <- lm(price ~ size, data = house_prices)   # build model
+
+summary(fit2)    # display model summary
+
+mean(fit2$residuals^2)   # MSE
+
+```
+
+
+```{r}
+
+mlr_model <- lm(price ~ size + num_bedrooms, data = house_prices)   # build model
+
+summary(mlr_model)    # display model summary
+
+mean(mlr_model$residuals^2)   # MSE
+
+```
+
+
+#### ---------------------------------------------------------------------------
+
+
+

@@ -1,0 +1,156 @@
+---
+title: "Regularization (The LASSO Model)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+```
+
+#### ---------------------------------------------------------------------------
+### The LASSO: Ames Housing Dataset
+
+
+```{r, message=FALSE}
+ames <- readRDS("AmesHousing.rds")   # load dataset
+```
+
+
+```{r}
+# reorder levels of 'Overall_Qual'
+ames$Overall_Qual <- factor(ames$Overall_Qual, levels = c("Very_Poor", "Poor", "Fair", "Below_Average", 
+                                                          "Average", "Above_Average", "Good", "Very_Good", 
+                                                          "Excellent", "Very_Excellent"))
+```
+
+
+```{r}
+# split data
+
+library(caret)
+
+set.seed(050724)   # set seed
+
+train_index <- createDataPartition(y = ames$Sale_Price, p = 0.7, list = FALSE)   # consider 70-30 split
+
+ames_train <- ames[train_index,]   # training data
+
+ames_test <- ames[-train_index,]   # test data
+```
+
+
+```{r}
+# create recipe and blueprint, prepare and apply blueprint
+
+library(recipes)
+
+set.seed(050724)   # set seed
+
+ames_recipe <- recipe(Sale_Price ~ ., data = ames_train)   # set up recipe
+
+blueprint <- ames_recipe %>%    
+  step_nzv(Street, Utilities, Pool_Area, Screen_Porch, Misc_Val) %>%   # filter out zv/nzv predictors
+  step_impute_mean(Gr_Liv_Area) %>%                                    # impute missing entries
+  step_integer(Overall_Qual) %>%                                       # numeric conversion of levels of the predictors   
+  step_center(all_numeric(), -all_outcomes()) %>%                      # center (subtract mean) all numeric predictors
+  step_scale(all_numeric(), -all_outcomes()) %>%                       # scale (divide by standard deviation) all numeric predictors
+  step_other(Neighborhood, threshold = 0.01, other = "other") %>%      # lumping required predictors
+  step_dummy(all_nominal(), one_hot = FALSE)                           # one-hot/dummy encode nominal categorical predictors
+
+
+prepare <- prep(blueprint, data = ames_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = ames_train)   # apply blueprint to training data
+
+baked_test <- bake(prepare, new_data = ames_test)    # apply blueprint to test data 
+```
+
+
+```{r}
+# implement CV to tune lambda
+
+set.seed(050724)   # set seed
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 5)   # CV specifications
+
+lambda_grid <- 10^seq(-3, 3, length = 100)   # grid of lambda values to search over
+
+library(glmnet)  # for LASSO
+
+lasso_cv <- train(blueprint,
+                   data = ames_train,
+                   method = __________,   # for lasso
+                   trControl = cv_specs,
+                   tuneGrid = expand.grid(alpha = 1, lambda = lambda_grid),  # alpha = 1 implements lasso
+                   metric = "RMSE")
+```
+
+
+```{r}
+lasso_cv   # results from the CV procedure
+```
+
+
+```{r}
+lasso_cv$bestTune$lambda    # optimal lambda
+```
+
+
+```{r}
+min(lasso_cv$results$RMSE)   # RMSE for optimal lambda
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+library(tidyverse)
+
+ggplot(lasso_cv)   # plot of RMSE vs lambda
+```
+
+
+```{r}
+# create datasets required for 'glmnet' function
+
+X_train <- model.matrix(Sale_Price ~ ., data = __________)[, -1]   # training features without intercept
+
+Y_train <- __________    # training response
+
+X_test <- model.matrix(Sale_Price ~ ., data = __________)[, -1]   # test features without intercept
+```
+
+```{r}
+# build optimal lasso model
+
+final_model <- glmnet(x = __________, 
+                      y = __________, 
+                      alpha = __________,      # alpha = 1 builds lasso model
+                      lambda = __________,     # using optimal lambda from CV
+                      standardize = FALSE)     # we have already standardized during data preprocessing
+```
+
+
+```{r}
+# obtain predictions and test set RMSE
+
+final_model_preds <- predict(object = final_model, newx = __________)    # obtain predictions
+
+sqrt(mean((final_model_preds - baked_test$Sale_Price)^2))   # calculate test set RMSE
+```
+
+
+```{r}
+coef(final_model)    # estimated coefficients from final lasso model
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# variable importance
+
+vip(object = lasso_cv,         # CV object 
+    num_features = 20,         # maximum number of predictors to show importance for
+    method = "model")          # model-specific VI scores
+```
+
+
+#### ---------------------------------------------------------------------------

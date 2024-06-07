@@ -1,0 +1,97 @@
+---
+title: "Practice Problems"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+library(caret)
+library(recipes)
+library(glmnet)
+library(rpart)
+library(ipred)
+library(e1071)
+library(ranger)
+library(gbm)
+library(kernlab)
+library(vip)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Practice - Regression
+
+```{r, message=FALSE}
+boston <- readRDS("boston.rds")   # load dataset
+
+# response Y - 'medv'
+```
+
+
+```{r}
+set.seed(208)
+
+lambda_grid <- 10^seq(-3, 3, length = 100)   # for LASSO
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))   # for KNN
+
+# use tuneLength = 20 for single tree
+
+param_grid_rf <- expand.grid(mtry = seq(1, 12, 1),    # for random forest
+                             splitrule = "variance",
+                             min.node.size = 2)
+
+# use tuneLength = 5 for boosted trees
+
+
+
+
+
+```
+
+
+
+#### ---------------------------------------------------------------------------
+### Practice - Classification
+
+```{r, message=FALSE}
+library(mlbench)   # load library
+
+data(Sonar)     # load dataset
+
+# response Y - 'Class'
+```
+
+
+```{r}
+set.seed(208)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))   # for KNN
+
+# use tuneLength = 20 for single tree
+
+param_grid_rf <- expand.grid(mtry = seq(1, 30, 1),    # for random forest
+                             splitrule = "gini",
+                             min.node.size = 2)
+
+# use tuneLength = 5 for boosted trees
+
+param_grid_linear <- expand.grid(C = c(0.001, 0.1, 1, 5, 10, 100))   # for SVM with linear kernel
+
+param_grid_poly <- expand.grid(degree = c(1, 2, 3, 4),               # for SVM with polynomial kernel
+                               scale = c(0.5, 1, 1.5, 2),
+                               C = c(0.001, 0.1, 1, 5, 10, 100))
+
+param_grid_radial <- expand.grid(sigma = c(0.5, 1, 1.5, 2),          # for SVM with radial kernel
+                                 C = c(0.001, 0.1, 1, 5, 10, 100))
+
+
+
+
+```
+
+
+
+#### ---------------------------------------------------------------------------

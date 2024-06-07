@@ -1,0 +1,83 @@
+---
+title: "Unsupervised Learning - PCA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Principal Components Analysis (PCA): USArrests Dataset
+
+
+```{r, message=FALSE}
+library(ISLR2)   # load package
+
+data("USArrests")   # load dataset
+```
+
+
+```{r}
+# check for missing entries and variable types
+
+sum(is.na(USArrests))
+
+summary(USArrests)
+```
+
+
+```{r}
+# implement PCA
+
+pca <- prcomp(USArrests, center = TRUE, scale = TRUE)   
+```
+
+
+```{r}
+pca     # results
+```
+
+
+```{r}
+summary(pca)    # proportion of variance explained
+```
+
+
+```{r}
+pca$rotation   # principal component loading vectors, phi's
+```
+
+
+```{r}
+pca$rotation[,2]   # first PC loading vector
+```
+
+
+```{r}
+pca$x  # principal component scores, z's
+```
+
+
+```{r}
+biplot(pca, scale = 0, cex = 0.6)   # biplot
+```
+
+
+```{r}
+# correlation matrix
+
+cor(USArrests)
+```
+
+
+```{r}
+screeplot(pca, type = "lines")   # screeplot to assess number of PCs
+```
+
+
+
+#### ---------------------------------------------------------------------------

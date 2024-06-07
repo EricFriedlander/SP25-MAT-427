@@ -1,0 +1,162 @@
+---
+title: "K-Nearest Neighbors"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+```
+
+
+#### ---------------------------------------------------------------------------
+### KNN Regression (one predictor)
+
+```{r}
+outlets <- readRDS("outlets.rds")   # load dataset
+```
+
+
+```{r, message=FALSE}
+library(caret)   # load the caret package
+```
+
+
+```{r}
+# nearest neighbors for a specified value of predictor
+
+nearest_neighbors <- outlets %>% 
+  mutate(distance = sqrt((6 - population)^2)) %>%   # calculate Euclidean distance
+  arrange(distance)     # sort distance from smallest to largest
+
+```
+
+
+```{r}
+# 1-NN
+
+knnfit1 <- knnreg(formula = ____________________, data = __________, k = __________)   # 1-nn regression
+
+predict(object = __________, newdata = data.frame(population = __________))  # 1-nn prediction
+```
+
+
+```{r}
+# 5-NN
+
+knnfit5 <- knnreg(formula = ____________________, data = __________, k = __________)  # 5-nn regression
+
+predict(object = __________, newdata = data.frame(population = __________))  # 5-nn prediction
+```
+
+
+#### ---------------------------------------------------------------------------
+### KNN Regression (multiple predictors)
+
+```{r}
+house_prices <- readRDS("house_prices.rds")   # load dataset
+```
+
+
+```{r}
+# scale predictors
+
+house_prices_scaled <- data.frame(size_scaled = scale(house_prices$size),
+                                  num_bedrooms_scaled = scale(house_prices$num_bedrooms),
+                                  price = house_prices$price)
+
+head(house_prices_scaled)   # first six observations
+
+```
+
+
+```{r}
+
+knnfit10 <- knnreg(formula = ____________________,, data = __________, k = __________)   # 10-nn regression
+
+```
+
+
+```{r}
+# obtain prediction
+
+new_size_scaled <- (2000 - mean(house_prices$size, na.rm = TRUE))/sd(house_prices$size, na.rm = TRUE)
+new_num_bedrooms_scaled = (3 - mean(house_prices$num_bedrooms))/sd(house_prices$num_bedrooms)
+
+predict(knnfit10, newdata = data.frame(size_scaled = new_size_scaled, num_bedrooms_scaled = new_num_bedrooms_scaled))
+```
+
+
+#### ---------------------------------------------------------------------------
+### KNN Classifier
+
+```{r, message=FALSE}
+library(ISLR2)   # load library
+
+data("Default")   # load dataset
+```
+
+```{r}
+head(Default)   # print first six observations
+```
+
+```{r, message=FALSE}
+table(Default$default)   # class frequencies
+```
+
+
+```{r, message=FALSE}
+library(caret)   # load package
+
+knnfit <- knn3(formula = ____________________, data = __________, k = __________)   # fit 10-nn model
+```
+
+
+```{r}
+knn_class_preds_1 <- predict(object = __________, newdata = __________, type = __________)   # obtain default class label predictions
+```
+
+
+```{r}
+knnfit_prob_preds <- predict(object = __________, newdata = __________, type = __________)   # obtain predictions as probabilities
+
+threshold <- 0.5   # set threshold
+
+knnfit_class_preds_2 <- factor(ifelse(__________ > threshold, "Yes", "No"))   # obtain predictions as class labels
+```
+
+
+```{r}
+# create confusion matrix
+
+# use the following code only when all predictions are from the same class
+# levels(knn_class_preds_1) = c("No", "Yes") 
+
+confusionMatrix(data = knn_class_preds_1, reference = Default$default, positive = "Yes")
+```
+
+
+#### ---------------------------------------------------------------------------
+### ROC curve
+
+```{r, fig.align='center', fig.width=4, fig.height=4}
+library(pROC)   # load library
+
+# create object for ROC curve for KNN fit
+
+roc_object_knn <- roc(response = ____________________, predictor = ____________________)
+
+# plot ROC curve
+
+plot(roc_object_knn, col = "red")
+```
+
+
+```{r}
+# obtain AUC's
+
+auc(roc_object_knn)
+```
+
+#### ---------------------------------------------------------------------------

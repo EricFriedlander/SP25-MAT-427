@@ -1,0 +1,241 @@
+---
+title: "Gradient Boosting"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+library(caret)
+library(recipes)
+library(rpart)
+library(rpart.plot)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Gradient Boosting: Ames Housing Dataset
+
+```{r, echo=FALSE}
+ames <- readRDS("AmesHousing.rds")   # load dataset
+```
+
+```{r, echo=FALSE}
+# reorder levels of 'Overall_Qual'
+ames$Overall_Qual <- factor(ames$Overall_Qual, levels = c("Very_Poor", "Poor", "Fair", "Below_Average", 
+                                                          "Average", "Above_Average", "Good", "Very_Good", 
+                                                          "Excellent", "Very_Excellent"))
+```
+
+```{r, echo=FALSE}
+# split data
+
+set.seed(051624)   # set seed
+
+index <- createDataPartition(y = ames$Sale_Price, p = 0.7, list = FALSE)   # consider 70-30 split
+
+ames_train <- ames[index,]   # training data
+
+ames_test <- ames[-index,]   # test data
+```
+
+
+```{r}
+# create recipe and blueprint, prepare and apply blueprint
+
+set.seed(051624)   # set seed
+
+ames_recipe <- recipe(Sale_Price ~ ., data = ames_train)   # set up recipe
+
+blueprint <- ames_recipe %>%
+  step_impute_mean(Gr_Liv_Area)                                   # impute missing entries
+
+
+prepare <- prep(blueprint, data = ames_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = ames_train)   # apply the blueprint to training data
+
+baked_test <- bake(prepare, new_data = ames_test)    # apply the blueprint to test data
+```
+
+
+```{r}
+set.seed(051624)   # set seed
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1)   # CV specifications
+
+library(gbm)
+
+out <- capture.output(
+  gbm_cv <- train(blueprint,
+                  data = ames_train,
+                  method = "gbm",  
+                  trControl = cv_specs,
+                  tuneLength = 10,
+                  metric = "RMSE")
+  )
+```
+
+
+```{r}
+gbm_cv$bestTune   # optimal tuning parameters
+```
+
+
+```{r}
+min(gbm_cv$results$RMSE)   # optimal CV RMSE
+```
+
+
+```{r}
+# fit final model
+
+final_model <- gbm(formula = Sale_Price ~ .,
+                   data = baked_train,
+                   n.trees = gbm_cv$bestTune$n.trees,
+                   interaction.depth = gbm_cv$bestTune$interaction.depth,
+                   n.minobsinnode = gbm_cv$bestTune$n.minobsinnode,
+                   shrinkage = gbm_cv$bestTune$shrinkage)
+```
+
+
+```{r}
+# obtain predictions on the test set
+
+final_model_preds <- predict(object = final_model, newdata = baked_test, type = "response")  # test set predictions
+
+sqrt(mean((final_model_preds - baked_test$Sale_Price)^2))   # test set RMSE
+```
+
+
+```{r}
+# variable importance
+
+vip(final_model, num_features = 15)
+```
+
+
+#### ---------------------------------------------------------------------------
+### Multi-Class Classification: Iris Dataset (Practice)
+
+```{r, message=FALSE}
+data(iris)        # load dataset
+```
+
+
+
+```{r}
+# investigate the dataset
+
+glimpse(iris)   # all features are numerical
+```
+
+```{r}
+summary(iris)   # summary of variables
+```
+
+```{r}
+sum(is.na(iris))  # no missing entries
+```
+
+```{r}
+nearZeroVar(iris, saveMetrics = TRUE)  # no zv/nzv features
+```
+
+
+
+```{r}
+# split the dataset
+
+set.seed(051624)   # set seed
+
+# split the data into training and test sets
+
+index <- createDataPartition(iris$Species, p = 0.8, list = FALSE)
+
+iris_train <- iris[index, ]
+
+iris_test <- iris[-index, ]
+```
+
+
+
+```{r}
+cv_specs <- trainControl(method = "repeatedcv", number = 10, repeats = 5)   # CV specifications
+```
+
+```{r, eval = FALSE}
+set.seed(051624)   # set seed
+
+# CV with logistic regression
+
+logistic_cv <- train(Species ~ .,
+                     data = iris_train,
+                     method = "glm",
+                     family = "binomial",
+                     trControl = cv_specs,
+                     metric = "Accuracy")
+```
+
+```{r}
+set.seed(051624)   # set seed
+
+# CV with gradient boosting
+
+library(gbm)
+
+out <- capture.output(
+  iris_gbm_cv <- train(Species ~ .,
+                       data = iris_train,
+                       method = "gbm",  
+                       trControl = cv_specs,
+                       tuneLength = 5,
+                       metric = "Accuracy")
+  )
+```
+
+```{r}
+iris_gbm_cv$bestTune   # optimal tuning parameters
+```
+
+```{r}
+max(iris_gbm_cv$results$Accuracy)   # optimal CV Accuracy
+```
+
+
+
+```{r}
+# final model
+
+gbm_fit <- gbm(formula = Species ~ .,
+               data = iris_train,
+               n.trees = iris_gbm_cv$bestTune$n.trees,
+               interaction.depth = iris_gbm_cv$bestTune$interaction.depth,
+               n.minobsinnode = iris_gbm_cv$bestTune$n.minobsinnode,
+               shrinkage = iris_gbm_cv$bestTune$shrinkage)
+```
+
+```{r}
+# probability predictions for each class
+
+final_model_prob_preds <- matrix(predict(object = gbm_fit, newdata = iris_test, type = "response"),
+                                 nrow = length(iris_test$Species),
+                                 ncol = n_distinct(iris_test$Species))
+
+
+
+# class label predictions for each class
+
+final_model_class_preds <- factor(levels(iris_test$Species)[apply(final_model_prob_preds, 1, which.max)])
+```
+
+```{r}
+# confusion matrix
+
+confusionMatrix(data = final_model_class_preds, reference = iris_test$Species)
+```
+
+
+#### ---------------------------------------------------------------------------

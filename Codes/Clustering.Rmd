@@ -1,0 +1,127 @@
+---
+title: "Unsupervised Learning - Clustering"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+```
+
+
+#### ---------------------------------------------------------
+### K-Means Clustering: iris Dataset
+
+```{r}
+data("iris")   # load dataset
+
+iris <- iris %>% dplyr::select(-Species)  # remove variable 'Species'
+```
+
+
+```{r, message=FALSE}
+### K-means clustering animation with two features ###
+
+library(animation)   # Load package
+
+# for visualization purposes consider only two variables - petal.width (3rd variable) and petal.length (4th variable)
+# animation of K-means clustering with K=3 (run this in the console and keep the plot window open)
+kmeans.ani(scale(iris[,3:4]), centers = 3)
+```
+
+
+```{r}
+# scale dataset
+
+iris_scaled <- scale(iris, center = TRUE, scale = TRUE)    
+```
+
+
+```{r}
+# perform K-means clustering
+
+set.seed(053024)
+
+km <- kmeans(iris_scaled, centers = 3, nstart = 20)
+```
+
+
+```{r}
+km   # results
+```
+
+
+```{r}
+# one way to plot clusters in a reduced dimension
+
+library(factoextra)
+
+fviz_cluster(object = km, 
+             data = iris_scaled, 
+             geom=c("point", "text"))
+```
+
+
+```{r}
+# to check for an appropriate number of clusters
+
+fviz_nbclust(x = iris_scaled,    
+             FUNcluster = kmeans, 
+             method = "wss",
+             k.max = 25) 
+```
+
+
+
+#### ---------------------------------------------------------------------------
+### Hierarchical Clustering: iris Dataset
+
+```{r}
+# computes distance matrix
+
+iris_scaled_distance <- dist(iris_scaled, method = "euclidean")   
+```
+
+
+```{r}
+# hierarchical clustering with complete linkage
+
+hclust_complete <- hclust(iris_scaled_distance, method = "complete")
+
+plot(hclust_complete, cex = 0.5)
+```
+
+
+```{r}
+# cut the dendrogram to obtain 3 clusters
+
+cutree(hclust_complete, k = 3)   
+```
+
+
+```{r}
+# cut the dendrogram at height of 5
+
+cutree(hclust_complete, h = 5)   
+```
+
+
+```{r}
+# cluster sizes if we choose to have 3 clusters
+
+table(cutree(hclust_complete, k = 3))   
+```
+
+
+```{r}
+# to check for an appropriate number of clusters
+
+fviz_nbclust(iris_scaled, 
+             FUNcluster = hcut, 
+             method = "wss",
+             k.max = 25) 
+```
+
+
+#### ---------------------------------------------------------------------------

@@ -1,0 +1,333 @@
+---
+title: "Feature Engineering"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+
+library(tidyverse)
+library(caret)
+```
+
+#### ---------------------------------------------------------------------------
+### Feature Engineering/Data Preprocessing: Ames Housing Dataset
+
+
+```{r, message=FALSE}
+ames <- readRDS("AmesHousing.rds")   # load dataset
+```
+
+
+```{r}
+glimpse(ames)  # check types of features
+
+# ames <- ames %>% mutate_if(is.character, as.factor)   # convert all character variables to factor variables if required
+```
+
+
+```{r}
+sum(is.na(ames))    # check for missing entries
+```
+
+
+```{r}
+summary(ames)  # check types of features, which features have missing entries?
+```
+
+
+```{r}
+levels(ames$Overall_Qual)   # the levels are NOT properly ordered
+```
+
+```{r}
+# relevel the levels
+
+ames$Overall_Qual <- factor(ames$Overall_Qual, levels = c("Very_Poor", "Poor", "Fair", "Below_Average", 
+                                                  "Average", "Above_Average", "Good", "Very_Good", 
+                                                  "Excellent", "Very_Excellent"))
+
+levels(ames$Overall_Qual)   # the levels are properly ordered
+```
+
+
+```{r}
+# split the dataset
+
+set.seed(042324)   # set seed
+
+train_index <- createDataPartition(y = ames$Sale_Price, p = 0.8, list = FALSE)   # consider 80-20 split
+
+ames_train <- ames[train_index,]   # training data
+
+ames_test <- ames[-train_index,]   # test data
+```
+
+
+```{r}
+# set up the recipe
+
+library(recipes)
+
+ames_recipe <- recipe(formula = __________, data = __________)   # sets up the type and role of variables
+
+ames_recipe$var_info
+```
+
+
+```{r}
+# investigate zv/nzv predictors 
+
+nearZeroVar(ames, saveMetrics = TRUE)   # check which predictors are zv/nzv
+```
+
+
+```{r}
+# investigate zv/nzv predictors 
+
+nearZeroVar(ames_train, saveMetrics = TRUE)   # check which predictors are zv/nzv
+```
+
+
+```{r}
+summary(ames_train)   # check which predictors have missing entries
+```
+
+
+```{r}
+# investigate categorical predictors with possible ordering (label encoding)
+
+ames_train %>% count(Overall_Qual)
+```
+
+
+```{r}
+# investigate nominal categorical predictors 
+
+ames_train %>% count(Neighborhood) %>% arrange(n)   # check frequency of categories
+```
+
+
+```{r}
+# finally, after all preprocessing steps have been decided set up the overall blueprint
+
+ames_recipe <- recipe(Sale_Price ~ ., data = ames_train)   # set up recipe
+
+blueprint <- ames_recipe %>%    
+  step_nzv(Street, Utilities, Pool_Area, Screen_Porch, Misc_Val) %>%   # filter out zv/nzv predictors
+  step_impute_mean(Gr_Liv_Area) %>%                                    # impute missing entries
+  step_integer(Overall_Qual) %>%                                       # numeric conversion of levels of the predictors   
+  step_center(all_numeric(), -all_outcomes()) %>%                      # center (subtract mean) all numeric predictors
+  step_scale(all_numeric(), -all_outcomes()) %>%                       # scale (divide by standard deviation) all numeric predictors
+  step_other(Neighborhood, threshold = 0.01, other = "other") %>%      # lumping required predictors
+  step_dummy(all_nominal(), one_hot = FALSE)                           # one-hot/dummy encode nominal categorical predictors
+
+
+prepare <- prep(blueprint, data = ames_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = ames_train)   # apply the blueprint to training data for building final/optimal model
+
+baked_test <- bake(prepare, new_data = ames_test)    # apply the blueprint to test data for future use
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# perform CV with KNN (tune K)
+
+set.seed(042324)
+
+cv_specs <- trainControl(method = __________, number = __________)   # 5-fold CV (1 repeat)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 2))
+
+knn_fit <- train(blueprint,
+                  data = __________, 
+                  method = __________,
+                  trControl = __________,
+                  tuneGrid = __________,
+                  metric = __________)
+
+knn_fit
+
+ggplot(knn_fit)
+```
+
+
+```{r}
+# perform CV with a linear regression model
+
+lm_fit <- train(blueprint,
+                  data = __________, 
+                  method = __________,
+                  trControl = __________,
+                  metric = __________)
+
+lm_fit
+```
+
+
+```{r}
+# refit the final/optimal model using ALL modified training data, and obtain estimate of prediction error from modified test data
+
+final_model <- ________________________________________    # build final model 
+
+final_preds <- predict(object = __________, newdata = __________)   # obtain predictions on test data
+
+sqrt(mean((__________ - __________)^2))    # calculate test set RMSE
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# variable importance
+
+library(vip)
+
+vip(object = __________,         # CV object 
+    num_features = __________,   # maximum number of predictors to show importance for
+    method = __________)            # model-specific VI scores
+```
+
+
+#### ---------------------------------------------------------------------------
+### Feature Engineering/Data Preprocessing: attrition Dataset
+
+
+```{r}
+attrition <- readRDS("attrition.rds")
+```
+
+
+```{r}
+# investigate the dataset
+
+
+
+
+
+
+
+
+
+
+```
+
+
+```{r}
+# split the dataset
+
+set.seed(042324)   # set seed
+
+index <- createDataPartition(y = __________, p = __________, list = FALSE)   # consider 70-30 split
+
+attrition_train <- __________[__________,]   # training data
+
+attrition_test <- __________[__________,]   # test data
+```
+
+
+```{r}
+# create recipe, blueprint, prepare, and bake
+
+attrition_recipe <- recipe(formula = __________, data = __________)   # sets up the type and role of variables
+
+attrition_recipe$var_info
+
+
+blueprint <- attrition_recipe %>%  ____________________________________________________________
+
+
+prepare <- prep(blueprint, data = attrition_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = attritio_train)   # apply the blueprint to training data for building final/optimal model
+
+baked_test <- bake(prepare, new_data = attrition_test)    # apply the blueprint to test data for future use
+```
+
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# perform CV 
+
+set.seed(042324)
+
+cv_specs <- trainControl(method = __________, number = __________)   # 5-fold CV (no repeats)
+```
+
+
+```{r}
+set.seed(042324)
+
+# CV with logistic regression
+
+logistic_fit <- train(blueprint,
+                  data = __________, 
+                  method = __________,
+                  family = __________,
+                  trControl = __________,
+                  metric = __________)
+
+logistic_fit
+```
+
+
+```{r}
+set.seed(042324)
+
+# CV with KNN
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_fit <- train(blueprint,
+                  data = __________, 
+                  method = __________,
+                  trControl = __________,
+                  tuneGrid = __________,
+                  metric = __________)
+
+knn_fit
+
+ggplot(knn_fit)
+```
+
+
+```{r}
+# refit the final/optimal model using ALL modified training data, and obtain estimate of prediction error from modified test data
+
+final_model <- ________________________________________    # build final model 
+
+final_model_prob_preds <- predict(object = __________, newdata = __________, type = __________)   # obtain probability predictions on test data
+
+threshold <- __________
+
+final_model_class_preds <- factor(ifelse(__________ > threshold, __________, __________)) 
+```
+
+
+```{r}
+# create confusion matrix
+
+confusionMatrix(data = relevel(__________, ref = __________), 
+                reference = relevel(__________, ref = __________))  
+```
+
+
+```{r}
+# create ROC curve
+
+library(pROC)
+
+roc_object <- roc(response = __________, predictor = __________)
+
+plot(roc_object, col = "red")
+```
+
+
+```{r}
+# compute AUC
+
+auc(roc_object)
+```
+
+
+#### ---------------------------------------------------------------------------

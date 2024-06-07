@@ -1,0 +1,177 @@
+---
+title: "Machine Learning - Homework 1"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Distinguish between supervised and unsupervised learning
+
+* Distinguish between regression and classification tasks
+
+* Identify $n$ and $p$ given the context
+
+* Identify the types of variables in a dataset
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1 (TO BE GRADED)
+
+For each of the following scenarios,
+
+(i) identify if it is a supervised or an unsupervised learning problem,
+
+(ii) identify if it is a classification or a regression problem, and 
+
+(iii) mention the appropriate values of $n$ and $p$. 
+
+
+**Scenario A**:  A business student collects data on the top 500 firms in the US. For each firm they record the profit, number of employees, industry, and the CEO salary. They are interested in understanding which factors affect CEO salary.
+
+**Scenario B**: A company is considering launching a new product and wishes to know whether it will be a success or a failure. They collect data on 20 similar products that were previously launched. For each product they record whether it was a success or failure, price charged for the product, marketing budget, competition price, and ten other variables.
+
+**Scenario C**: An economist is interested in predicting the % change in the USD/Euro exchange rate in relation to the weekly changes in the world stock markets. They collect weekly data for all of 2012. For each week they record the % change in the USD/Euro, the % change in the US market, the % change in the British market, and the % change in the German market.
+
+**Scenario D**: Mohamed wanted to understand who was applying to his company's open jobs. What do these people have in common? Mohamed had access to a dataset of 789 applicants and 17 demographic characteristics about them.
+
+**Scenario E**: Jackie has recently moved into the city of Appleton. She is looking to buy a new home and wishes there was a technique to predict home prices based on home attributes - number of bedrooms, square feet area, and location. She has collected data on 13 homes so far.
+
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2 
+
+The following code chunk creates and displays a feature matrix $X$. To run/execute the code, click the green arrow on the top right of the code chunk.
+
+```{r}
+values <- c(8.5, 11.2, 7, 9.3, 8, 11.5, 13.1, 7.4, 6.4, 9.6, 7, 6.8, 9.5, -3.2, 14.4, 1.6, 7.9, 10.1, 12, -1.6)  # create list of values
+
+X <- matrix(values, nrow = 5, ncol = 4, byrow = TRUE)   # create matrix
+
+X  # display matrix
+```
+
+Answer the questions below based on this feature matrix.
+
+
+(a) Identify the number of observations/data points $n$ and the number of inputs/features $p$.
+
+```{}
+# write your answer here
+
+
+```
+
+
+(b) What is the value of the 2nd feature for the 3rd observation?
+
+```{}
+# write your answer here
+
+
+```
+
+
+(c) What are the feature values for the 3rd observation?
+
+```{}
+# write your answer here
+
+
+```
+
+
+(d) What are the values of the 4th feature?
+
+```{}
+# write your answer here
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3
+
+This problem involves the `Auto` dataset from the `ISLR2` library/package. Run the following code chunk to load the dataset. 
+
+The dataset should get loaded in the **Environment** pane on the top right. You can access/view it by clicking on it.
+
+```{r}
+library(ISLR2)   # load library
+
+data("Auto")   # load dataset
+```
+
+
+For more information about the dataset and variables, run the following code chunk and see the **Help** page on the bottom right.
+
+```{r, eval=FALSE}
+?Auto   # load help page
+```
+
+
+(a) Which variables are quantitative/numerical, and which are qualitative/categorical? 
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(b) The following code creates a scatterplot of the variables `weight` (along the horizontal x-axis) and `acceleration` (along the vertical y-axis). Run the chunk to see the plot.
+
+```{r, fig.align='center'}
+library(tidyverse)
+
+ggplot(data = Auto) +
+  geom_point(mapping = aes(x = weight, y = acceleration)) +
+  labs(x = "Vehicle weight in lbs.", y = "Time in seconds to accelerate from 0 to 60 mph")
+```
+
+
+From the scatterplot, how would you describe the relationship between the two variables?
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------

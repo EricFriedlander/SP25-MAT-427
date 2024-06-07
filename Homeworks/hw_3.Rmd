@@ -1,0 +1,315 @@
+---
+title: "Machine Learning - Homework 3"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Practice with multiple regression in R
+
+* Practice with the trade-off between model complexity and performance
+
+* Practice with the KNN technique
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+In this question, you will work with the **colleges.rds** dataset. Load the dataset using the following code.
+
+```{r}
+
+colleges <- readRDS("colleges.rds")   # load dataset
+
+```
+
+The dataset reports some statistics for 777 US Colleges and Universities from the 1995 issue of the US News and World Report. **And yes, Lawrence University is also one of the data points!**
+
+For this question, we will work with the following variables.
+
+* `Yield` - Percentage of students who choose to enroll in a particular college or university after having been offered admission
+
+* `Top10perc` - Percentage of new students from top 10% of High School class
+
+* `Outstate` - Out-of-state tuition in US dollars
+
+* `Expend` - Instructional expenditure per student in US dollars
+
+Here is a correlation plot of the variables.
+
+```{r, fig.align='center'}
+
+library(GGally)
+
+ggpairs(data = colleges)
+
+```
+
+
+**Consider `Yield` as the response for the following questions.**
+
+
+(a) Fit a multiple regression model named `fit1` with `Top10perc` and `Outstate` as predictors. Generate a `summary` of the model.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+(b) From your model in (a), interpret the regression coefficient for `Top10perc` in the context of this dataset.
+
+```{}
+# write your answer here
+
+
+```
+
+
+(c) Using your model in (a), predict the `Yield` when 25% of new students are from the top 10% of their HS class and the out-of-state tuition is 10000 USD.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+(d) Fit another multiple regression model named `fit2` with `Top10perc`, `Outstate`, and `Expend` as the predictors. Generate a `summary` of the model.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+(e) Comparing the regression models `fit1` and `fit2`, explain why the RSE (residual standard error) does not decrease (significantly) even after adding a predictor variable to the `fit1` model from (a). 
+
+```{}
+# write your answer here
+
+
+```
+
+
+```{r}
+# write your R code here (optional)
+
+
+```
+
+
+(f) Consider RSE as a measure of performance of the multiple regression models `fit1` and `fit2`. Which model is better in terms of the trade-off between complexity and performance? Justify your answer.  (TO BE GRADED)
+
+```{}
+# write your answer here
+
+
+```
+
+
+(g) Create a 7-nearest neighbors fit with `Top10perc` and `Outstate` as predictors. Obtain the predicted `Yield` when 25% of new students are from the top 10% of their HS class and the out-of-state tuition is 10000 USD. (TO BE GRADED)
+
+```{r}
+# write your R code here
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2 (This question is intended to be solved by hand/calculator without coding.) (TO BE GRADED)
+
+This question concerns applying the KNN approach to a classification problem. For regression problems, the prediction is obtained by averaging the responses for the nearest neighbors. For classification, the prediction is obtained by **majority vote**, that is, the predicted class is the most commonly occurring class among the neighbors. Ties are decided randomly.
+
+The table below provides a training data set containing six observations, three predictors, and a qualitative response variable.
+
+<center>
+| Obs. | $X_1$ | $X_2$ | $X_3$ | $Y$ |
+|------|-------|-------|-------|-------|
+| 1 | 0 | 3 | 0 | Red |
+| 2 | 2 | 0 | 0 | Red |
+| 3 | 0 | 1 | 3 | Red |
+| 4 | 0 | 1 | 2 | Green |
+| 5 | -1 | 0 | 1 | Green |
+| 6 | 1 | 1 | 1 | Red |
+</center>
+
+
+The Euclidean distance between two $p$-dimensional vectors/points $\mathbf{a}=(a_1, a_2, \ldots, a_p)$ and $\mathbf{b}=(b_1, b_2, \ldots, b_p)$ is 
+
+$$||\mathbf{a}-\mathbf{b}||_2 = \sqrt{(a_1-b_1)^2 + (a_2-b_2)^2 + \ldots + (a_p-b_p)^2}$$
+
+
+(a) Consider $K=1$. Find the predicted class label for each training observation. What is then the overall training error (misclassification rate)? 
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+(b) Now, suppose we wish to use this training data to predict $Y$ for a test data point $X_1 = X_2 = X_3 = 0$ using $K$-nearest neighbors. Compute the Euclidean distance between each training observation and the test data point, $X_1 = X_2 = X_3 = 0$. Report the distances. 
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+(c) Using the results from (b), what is the prediction for the test data point $X_1 = X_2 = X_3 = 0$ when $K = 1$? Justify.
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+(d) Using the results from (b), what is the prediction for the test data point $X_1 = X_2 = X_3 = 0$ when $K = 3$? Justify.
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3 
+
+This question is intended to give you practice with how ties are handled for a KNN regression implementation in R. We will work with the **AmesHousing.rds** dataset and focus on the variables `Sale_Price` (as the response) and `Gr_Liv_Area` (as the predictor). Load the dataset using the following code.
+
+```{r}
+library(tidyverse)
+
+ames <- readRDS("AmesHousing.rds")   # load dataset
+
+ames <- ames %>% 
+  select(Sale_Price, Gr_Liv_Area) %>%   # select the two variables of interest
+  filter(!(is.na(Gr_Liv_Area)))         # filter out NA (missing) entries
+
+head(ames)   # display first six observations
+
+```
+
+
+**To understand the implementation of KNN with ties, it is better to first answer these questions by hand calculation and then verify your logic/understanding with appropriate coding.**
+
+
+(a) Consider a house with `Gr_Liv_Area = 3962`. Obtain the nearest neighbors using the code below. What is the predicted `Sale_Price` for K = 1? What is the prediction for K = 2? What is the prediction for K = 3?
+
+```{r}
+# nearest neighbors for a specified value of `Gr_Liv_Area`
+
+nearest_neighbors_a <- ames %>% 
+  mutate(distance = sqrt((3962 - Gr_Liv_Area)^2)) %>%   # calculate Euclidean distance
+  arrange(distance)     # sort distance from smallest to largest
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+```{r}
+# write appropriate R code here to verify your answers
+
+
+
+
+```
+
+
+(b) Now, consider a house with `Gr_Liv_Area = 1008`. Obtain the nearest neighbors using the code below. What is the predicted `Sale_Price` for K = 1? What is the prediction for K = 2? What is the prediction for K = 3? What are the predictions for K = 5 and K = 7?
+
+```{r}
+# nearest neighbors for a specified value of `Gr_Liv_Area`
+
+nearest_neighbors_b <- ames %>% 
+  mutate(distance = sqrt((1008 - Gr_Liv_Area)^2)) %>%   # calculate Euclidean distance
+  arrange(distance)     # sort distance from smallest to largest
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+```{r}
+# write appropriate R code here to verify your answers
+
+
+
+
+```
+
+
+(c) Briefly summarize your logic/understanding of how the KNN implementation in R handles ties for regression problems.
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+

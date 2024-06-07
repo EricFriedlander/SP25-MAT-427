@@ -1,0 +1,235 @@
+---
+title: "Machine Learning - Homework 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Practice with the KNN technique
+
+* Practice with logistic regression
+
+* Practice with cross-validation
+
+* Practice with model comparison
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+This problem concerns heart disease diagnosis based on certain characteristics of patients. You will work with the **HeartDisease** dataset. Missing entries have been removed and the dataset has been split into training and test data. Load the **HeartDiseaseTrain.rds** and **HeartDiseaseTest.rds** files into your R session using the following code.
+
+```{r}
+hdtrain <- readRDS("HeartDiseaseTrain.rds")
+
+hdtest <- readRDS("HeartDiseaseTest.rds")
+```
+
+
+The **HeartDisease** dataset, available at the UCI Machine Learning Repository, was created by Robert Detrano, M.D., Ph.D. at the Cleveland Clinic Foundation. The dataset contains information on the following 14 variables.
+
+* `age` - age in years
+* `sex` - 1 = male; 0 = female
+* `cp` - chest pain type (1: typical angina; 2: atypical angina; 3: non-anginal pain; 4: asymptomatic)
+* `trestbps` - resting blood pressure (in mm Hg on admission to the hospital)
+* `chol` - serum cholesterol in mg/dl
+* `fbs` - (fasting blood sugar > 120 mg/dl) (1 = TRUE; 0 = FALSE)
+* `restecg` - resting electrocardiographic results (0, 1 or, 2)
+* `thalach` - maximum heart rate achieved
+* `exang` - exercise induced angina (1 = yes; 0 = no)
+* `oldpeak` - ST depression induced by exercise relative to rest
+* `slope` - the slope of the peak exercise ST segment (1: upsloping; 2: flat; 3: downsloping)
+* `ca` - number of major vessels (0-3) colored by fluoroscopy
+* `thal` - 3 = normal; 6 = fixed defect; 7 = reversible defect
+* `target` - 1 = Yes (presence of heart disease); 0 = No (absence of heart disease)
+
+Consider `target` as the response variable and rest of the variables as predictors. We are interested in the class label "1" (positive class), meaning the presence of the disease. For this homework, you can consider all the predictors to be numerical even though some of them can be interpreted as categorical. The predictors in both the training and test datasets have been scaled below.
+
+```{r}
+library(tidyverse)
+
+# scale features for both training and test data
+
+hdtrain_scaled <- hdtrain %>% 
+  mutate(age_scaled = (age - mean(hdtrain$age))/sd(hdtrain$age),
+         sex_scaled = (sex - mean(hdtrain$sex))/sd(hdtrain$sex),
+         cp_scaled = (cp - mean(hdtrain$cp))/sd(hdtrain$cp),
+         trestbps_scaled = (trestbps - mean(hdtrain$trestbps))/sd(hdtrain$trestbps),
+         chol_scaled = (chol - mean(hdtrain$chol))/sd(hdtrain$chol),
+         fbs_scaled = (fbs - mean(hdtrain$fbs))/sd(hdtrain$fbs),
+         restecg_scaled = (restecg - mean(hdtrain$restecg))/sd(hdtrain$restecg),
+         thalach_scaled = (thalach - mean(hdtrain$thalach))/sd(hdtrain$thalach),
+         exang_scaled = (exang - mean(hdtrain$exang))/sd(hdtrain$exang),
+         oldpeak_scaled = (oldpeak - mean(hdtrain$oldpeak))/sd(hdtrain$oldpeak),
+         slope_scaled = (slope - mean(hdtrain$slope))/sd(hdtrain$slope),
+         ca_scaled = (ca - mean(hdtrain$ca))/sd(hdtrain$ca),
+         thal_scaled = (thal - mean(hdtrain$thal))/sd(hdtrain$thal)) %>% 
+  select(target, age_scaled, sex_scaled, cp_scaled, trestbps_scaled, chol_scaled, 
+         fbs_scaled, restecg_scaled, thalach_scaled, exang_scaled, oldpeak_scaled, 
+         slope_scaled, ca_scaled, thal_scaled)
+
+hdtest_scaled <- hdtest %>% 
+  mutate(age_scaled = (age - mean(hdtrain$age))/sd(hdtrain$age),
+         sex_scaled = (sex - mean(hdtrain$sex))/sd(hdtrain$sex),
+         cp_scaled = (cp - mean(hdtrain$cp))/sd(hdtrain$cp),
+         trestbps_scaled = (trestbps - mean(hdtrain$trestbps))/sd(hdtrain$trestbps),
+         chol_scaled = (chol - mean(hdtrain$chol))/sd(hdtrain$chol),
+         fbs_scaled = (fbs - mean(hdtrain$fbs))/sd(hdtrain$fbs),
+         restecg_scaled = (restecg - mean(hdtrain$restecg))/sd(hdtrain$restecg),
+         thalach_scaled = (thalach - mean(hdtrain$thalach))/sd(hdtrain$thalach),
+         exang_scaled = (exang - mean(hdtrain$exang))/sd(hdtrain$exang),
+         oldpeak_scaled = (oldpeak - mean(hdtrain$oldpeak))/sd(hdtrain$oldpeak),
+         slope_scaled = (slope - mean(hdtrain$slope))/sd(hdtrain$slope),
+         ca_scaled = (ca - mean(hdtrain$ca))/sd(hdtrain$ca),
+         thal_scaled = (thal - mean(hdtrain$thal))/sd(hdtrain$thal)) %>% 
+  select(target, age_scaled, sex_scaled, cp_scaled, trestbps_scaled, chol_scaled, 
+         fbs_scaled, restecg_scaled, thalach_scaled, exang_scaled, oldpeak_scaled, 
+         slope_scaled, ca_scaled, thal_scaled)
+```
+
+
+You will compare the following models.
+
+* Logistic regression with threshold of 0.5
+
+* Logistic regression with threshold of 0.1
+
+* $K$-NN classifier with $K=5$ and threshold of 0.5
+
+* $K$-NN classifier with $K=13$ and threshold of 0.5
+
+
+Follow the steps below for each of the models above.
+
+* Build model with the scaled training dataset (Note: there are multiple predictors). 
+
+* Obtain predictions (predicted class labels) on the scaled test dataset. 
+
+* Create confusion matrix and report the accuracy, precision, and recall. 
+
+
+Which classification metric (accuracy, precision, or recall) is suitable to evaluate the test set performance of the models above? In other words, given that this is a heart disease prediction problem which metric would you consider? **Explain your choice.**
+
+Compare the models above based on your chosen metric and report the optimal (best) model in this context based on its test set performance.
+
+
+```{r}
+# write your R code here (you can create and use separate code chunks if you wish)
+library(tidyverse)
+library(caret)
+
+set.seed(2084)
+
+
+
+```
+
+
+```{}
+# write your answer here
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2 (TO BE GRADED)
+
+For this question, you will work with the **Auto** dataset. Load the dataset using the following code.
+
+```{r,message=FALSE}
+library(ISLR2)  # load library
+
+data("Auto")   # load dataset
+```
+
+
+The dataset contains information for 392 vehicles. Consider `mpg` (miles per gallon) as the response variable and `horsepower` (engine horsepower) as the predictor. A scatterplot of the variables is shown below. The scatterplot should give you an idea of which of the following models would provide an optimal fit.
+
+```{r, fig.align='center', fig.height=3, fig.width=6, echo = FALSE}
+ggplot(data = Auto) + geom_point(aes(x = horsepower, y = mpg)) +
+  labs(x = "Engine horsepower", y = "Miles Per Gallon")
+```
+
+
+The objective is to compare the performance (in terms of **RMSE**) of the following four models (viewed better as html) using CV.
+
+* A simple linear regression model with `horsepower` as the predictor; $$\text{mpg} = \beta_0 + \left(\beta_1 \times \text{horsepower}\right)$$
+
+* A quadratic (second degree) polynomial model; $$\text{mpg} = \beta_0 + \left(\beta_1 \times \text{horsepower}\right) + \left(\beta_2 \times \text{horsepower}^2\right)$$
+
+* A cubic (third degree) polynomial model; $$\text{mpg} = \beta_0 + \left(\beta_1 \times \text{horsepower}\right) + \left(\beta_2 \times \text{horsepower}^2\right) + \left(\beta_3 \times \text{horsepower}^3\right)$$
+
+* A quartic (fourth degree) polynomial model; $$\text{mpg} = \beta_0 + \left(\beta_1 \times \text{horsepower}\right) + \left(\beta_2 \times \text{horsepower}^2\right) + \left(\beta_3 \times \text{horsepower}^3\right) + \left(\beta_4 \times \text{horsepower}^4\right)$$
+
+
+**Perform the following tasks.**
+
+* Split the data into training and test sets (consider a 80-20 split).
+
+```{r}
+# write your R code here
+set.seed(2084)
+
+
+```
+
+
+* Implement 10-fold CV repeated 5 times for each of the models above. Use `method = "lm"` and `metric = "RMSE"`. For the polynomial models, you can use the `poly` function, that is, the code for the quadratic polynomial can be written as `mpg ~ poly(horsepower, degree = 2)`.
+
+```{r}
+# write your R code here
+set.seed(2084)
+
+
+```
+
+
+* Plot the CV RMSE's of the four models.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+* Choose your optimal model based on the CV RMSE's. Report the parameter estimates of your optimal model.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+* Finally, with the optimal model, obtain predictions on the test data. Calculate and report the test set RMSE.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+

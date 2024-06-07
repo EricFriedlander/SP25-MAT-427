@@ -1,0 +1,214 @@
+---
+title: "Machine Learning - Homework 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Distinguish between parametric and non-parametric approaches
+
+* Apply the bias-variance trade-off concept to different contexts
+
+* Practice with linear regression
+
+* Practice with the gradient descent technique
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+Describe the differences between a parametric and a non-parametric statistical learning approach. What are the advantages of a parametric approach, as opposed to a nonparametric approach? What are its disadvantages?
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2
+
+For each of the following scenarios, indicate whether we would generally expect the performance of a flexible statistical learning method to be better or worse than an inflexible method. **Explain your answer in terms of the concepts of bias, variance, and overfitting/underfitting**.
+
+a) The sample size $n$ is extremely large, and the number of predictors $p$ is small. (TO BE GRADED)
+
+b) The number of predictors $p$ is extremely large, and the number of observations $n$ is small. (TO BE GRADED)
+
+c) The relationship between the predictors and response is highly non-linear.
+
+d) The variance of the error terms, i.e. $Var(\epsilon)$, is extremely high.
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3 (TO BE GRADED)
+
+In this question, you will work with the **advertising.rds** dataset. Load the dataset using the following code. You can view the dataset by clicking on it in the **Environment** pane on the top right. 
+
+```{r}
+advertising <- readRDS("advertising.rds")   # load dataset
+```
+
+The dataset reports the `sales` (in thousands of units) for a particular product as a function of the `TV` advertising budget (in thousands of dollars). Run the code chunk below to see a scatterplot of the dataset.
+
+```{r, fig.align='center', fig.width=6, fig.height=4}
+library(tidyverse)
+
+ggplot(data = advertising) +
+  geom_point(mapping = aes(x = TV, y = sales)) +
+  labs(x = "TV budget (in thousands of dollars)", y = "Sales (in thousands of units)")
+```
+
+
+**Consider `sales` as the response for the following questions.**
+
+
+a) Fit a linear regression model using the `lm` command with `TV` as the predictor. Generate a `summary` of the model.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+b) From your model in (a), interpret the slope/regression coefficient for `TV` in the context of this dataset.
+
+```{}
+# write your answer here
+
+
+```
+
+
+c) Using your model in (a), predict the `sales` when the budget for `TV` is $45,000.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+d) Implement the gradient descent algorithm on this dataset to obtain the parameter estimates. Experiment with learning rates of 0.1 (1e-1), 0.01, 0.001, 0.0001, and 0.00001. Consider 50 iterations and starting values of 0.
+
+```{r}
+# write your R code here
+
+
+
+
+
+
+
+
+
+```
+
+
+e) Based on your experiment in (d), comment on your findings. Address questions such as: which learning rate produced the lowest loss after 50 iterations? which learning rate(s) produced a decreasing loss function? which learning rate(s) resulted in an increasing loss function? did any choice of learning rate and the resulting loss surprise you? how far was the lowest loss obtained from the actual MSE of the linear model?
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 4 (continued from Question 3)
+
+In this question, you will work with the **advertising_scaled** dataset, where the variable `TV` has been scaled (subtracted the mean from every value, and divided by the standard deviation) from the dataset in question 3. Create the dataset using the following code. 
+
+```{r}
+advertising_scaled <- data.frame(TV_scaled = scale(advertising$TV), sales = advertising$sales)   # create dataset
+```
+
+
+The scatterplot with the scaled `TV` variable can be obtained below. Observe how the horizontal x-axis has been scaled from the previous scatterplot in question 3.
+
+```{r, fig.align='center', fig.width=6, fig.height=4}
+ggplot(data = advertising_scaled) +
+  geom_point(mapping = aes(x = TV_scaled, y = sales)) +
+  labs(x = "Scaled TV budget", y = "Sales (in thousands of units)")
+```
+
+
+a) Fit a linear regression model using the `lm` command with `TV_scaled` as the predictor. Generate a `summary` of the model.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+b) Implement the gradient descent algorithm again with the scaled dataset. Now start with a learning rate of 0.00001, and increase as 0.0001, 0.001, 0.01, and 0.1. Consider 50 iterations and starting values of 0
+
+```{r}
+# write your R code here
+
+
+
+
+
+
+
+
+
+```
+
+
+c) Based on your experiment in (b), comment on your findings. Address questions such as: which learning rate produced the lowest loss? which learning rate(s) produced a decreasing loss function? which learning rate(s) resulted in an increasing loss function? did any choice of learning rate and the resulting loss surprise you? how far was the lowest loss obtained from the actual MSE of the linear model? did any choice of the learning rate result in the parameter estimates (or close to) from the actual linear model?
+
+```{}
+# write your answer here
+
+
+
+
+
+
+```

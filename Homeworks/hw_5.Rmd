@@ -1,0 +1,266 @@
+---
+title: "Machine Learning - Homework 5"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Practice with cross-validation
+
+* Practice with feature engineering
+
+* Practice with the overall ML process
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+For this question, you will work with the **Boston** dataset. Load the dataset using the following code.
+
+```{r,message=FALSE}
+library(ISLR2)  # load library
+
+data("Boston")   # load dataset
+```
+
+
+The dataset contains housing information from Boston suburbs. **Consider `medv` (median value of owner-occupied homes in \$1000s) as the response variable and `dis` (weighted mean of distances to five Boston employment centres) as the predictor.** A scatterplot of the variables is shown below.
+
+```{r, fig.align='center', fig.height=3, fig.width=6, echo = FALSE}
+library(tidyverse)
+
+ggplot(data = Boston) + geom_point(aes(x = dis, y = medv)) +
+  labs(x = "Weighted mean of distances to five Boston employment centres", y = "Median value of homes in $1000s")
+```
+
+
+The objective is to compare the performance (in terms of **RMSE**) of the following models using CV.
+
+* A simple linear regression model with `dis` as the predictor; $$\text{medv} = \beta_0 + \left(\beta_1 \times \text{dis}\right)$$
+
+* A quadratic (second degree) polynomial model; $$\text{medv} = \beta_0 + \left(\beta_1 \times \text{dis}\right) + \left(\beta_2 \times \text{dis}^2\right)$$
+
+* A KNN regression model between `medv` and `dis` with optimal $K$ chosen by CV. Consider the grid of $K$ values given below.
+
+**Note that, there is only one predictor without any missing entries. So, feature engineering is NOT required for this problem.**
+
+
+**Perform the following tasks.**
+
+* Split the data into training and test sets (consider a 70-30 split).
+
+```{r}
+# write your R code here
+library(caret)
+set.seed(2085)
+
+
+```
+
+
+* Implement 10-fold CV repeated 5 times for each of the models above. Use `metric = "RMSE"` and the appropriate `method`. 
+
+```{r}
+# write your R code here
+set.seed(2085)
+
+
+k_grid <- expand.grid(k = seq(1, 100, by = 1))  # for KNN
+
+
+```
+
+
+* Report the optimal CV RMSEs of the models above. Which model performs the best? If the KNN model shows the best performance, report the optimal value of $K$ and the corresponding RMSE.
+
+```{r}
+# write your R code here
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Finally, with the optimal model, obtain predictions on the test data. Calculate and report the test set RMSE.
+
+```{r}
+# write your R code here
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2 (TO BE GRADED)
+
+For this question, you will work with the **Credit** dataset which contains demographic and credit card information on 400 customers. Load the dataset using the following code.
+
+```{r,message=FALSE}
+Credit <- readRDS("Credit.rds")
+```
+
+The dataset contains information on the following 11 variables.
+
+* `Income` - Income in $1,000's
+* `Limit` - Credit limit
+* `Rating` - Credit rating
+* `Cards` - Number of credit cards
+* `Age` - Age in years
+* `Education` - Education in years
+* `Own` - Does the individual own a home? ('Yes' or 'No')
+* `Student` - Is the individual a student? ('Yes' or 'No')
+* `Married` - Is the individual married? ('Yes' or 'No')
+* `Region` - Geographical location ('East', 'South', 'West')
+* `Balance` - Average credit card balance in $.
+
+**Consider `Balance` as the response variable and the rest of the variables as predictors.**
+
+The objective is to compare the performance (in terms of **RMSE**) of the following two models:
+
+* A linear regression model;
+
+* A $K$-NN regression model with optimal $K$ chosen by CV. Consider the grid of possible $K$ values given below.
+
+
+**Perform the following tasks.**
+
+* Investigate the dataset - report which variables are categorical or numerical, check if there are missing entries, or zv/nzv features, etc.
+
+```{r}
+# write your R code here
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Split the data into training and test sets (consider a 80-20 split).
+
+```{r}
+# write your R code here
+library(caret)
+set.seed(2085)
+
+
+
+```
+
+
+* Perform required data preprocessing and create the blueprint. If using `step_dummy()`, set `one_hot = FALSE`. Prepare the blueprint on the training data. Obtain the modified training and test datasets. **Explain the blueprint steps that you use.**
+
+```{r}
+# write your R code here
+set.seed(2085)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Implement 5-fold CV repeated 5 times for each of the models above. 
+
+```{r}
+# write your R code here
+set.seed(2085)
+
+
+
+
+k_grid <- expand.grid(k = seq(1, 25, by = 3))   # for KNN
+
+
+
+```
+
+
+* Report the optimal CV RMSE of each model. Report the the optimal value of $K$ for the KNN model. Which model performs better in this situation? 
+
+```{r}
+# write your R code here
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Finally, with the optimal model, obtain predictions on the test set. Calculate and report the test set RMSE.
+
+```{r}
+# write your R code here
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3
+
+Prof. Chakraborty built an ML model and evaluated it on the test dataset. He noticed there was a problem: the results were too good to be correct.
+
+He decided to review his process step by step. This is what he wrote down:
+
+1.	He loaded the entire dataset in memory.
+
+2.	He replaced one variable's missing values with the mean of the variable and scaled the predictors.
+
+3.	He then split the overall dataset into a train and a test set.
+
+4.	And finally, he trained his model on the entire training set and evaluated it on the test set.
+
+Help him find the reason for the model's inflated performance with appropriate explanation.
+
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+### ----------------------------------------------------------------------------

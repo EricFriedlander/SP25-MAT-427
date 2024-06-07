@@ -1,0 +1,426 @@
+---
+title: "Machine Learning - Homework 8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(tidyverse)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Practice with the overall ML process
+
+* Practice with tree-based methods
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+For this question, you will work with the **sales.rds** dataset which contains information on the sales of child car seats at 400 different stores. Load the dataset into your R session using the following code.
+
+```{r}
+sales <- readRDS("sales.rds")
+```
+
+The dataset contains the following variables.
+
+* `Sales` - Unit sales (in thousands) at each location 
+* `CompPrice` - Price charged by competitor at each location 
+* `Income` - Community income level (in thousands of dollars)
+* `Advertising` - Local advertising budget for company at each location (in thousands of dollars) 
+* `Population` - Population size in region (in thousands)
+* `Price` - Price company charges for car seats at each site
+* `ShelveLoc` - Quality of the shelving location for the car seats at each site ('Bad', 'Medium', 'Good')
+* `Age` - Average age of the local population
+* `Education` - Education level at each location
+* `Urban` - Is the store in an urban or rural location? ('Yes', 'No')
+* `US` - Is the store in the US or not? ('Yes', 'No')
+
+
+Consider `Sales` as the response variable and the rest of the variables as predictors. 
+
+Compare the performance (in terms of **RMSE**) of the following models with the respective optimal hyperparameters chosen by CV.
+
+* A KNN regression model,
+
+* a single regression tree,
+
+* a bagged trees model,
+
+* a random forest model, and
+
+* a gradient boosting model.
+
+
+**Perform the following tasks.**
+
+* Investigate the dataset and complete any necessary tasks. **Write a brief description of your findings.**
+
+```{r}
+# write your R code here
+library(caret)
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Split the data into training and test sets (80-20).
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+
+
+
+
+```
+
+
+* Perform required data preprocessing and create the blueprint. If using `step_dummy()`, set `one_hot = FALSE`. Prepare the blueprint on the training data. Obtain the modified training and test datasets. **Provide brief explanations/reasoning of your feature engineering steps.**
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+library(recipes)
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Implement 5-fold CV repeated 5 times for each of the models above. 
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+library(recipes)
+library(rpart)
+library(rpart.plot)
+library(ipred)
+library(e1071)
+library(ranger)
+library(gbm)
+
+
+
+
+
+k_grid <- expand.grid(k = seq(1, 101, by = 10))    # for KNN
+
+
+
+
+# use tuneLength = 20 for the single regression tree
+
+
+
+
+param_grid_rf <- expand.grid(mtry = seq(1, 10, 1),    # for random forests
+                             splitrule = "variance",
+                             min.node.size = 2)
+
+
+
+# use tuneLength = 5 for the gradient boosting model
+
+
+
+
+```
+
+
+* Report the optimal CV (or, OOB) RMSE of each model. Report the optimal hyperparameters for each model. Which model performs best in this situation? 
+
+```{r}
+# write your R code here
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+* Using the optimal model, obtain predictions on the test set. Calculate and report the test set RMSE.
+
+```{r}
+# write your R code here
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2
+
+Now, consider only the tree-based methods from Question 1. We know that trees require minimal feature engineering (only require missing entry imputation). 
+
+Create a new blueprint with the minimal feature engineering steps if required. Prepare this blueprint on the training data. Obtain the modified training and test datasets.
+
+Now, implement CV with the new blueprint on the tree-based methods from Question 1. Compare the optimal CV (or, OOB) RMSE and optimal hyperparameter values for these methods with full (from Question 1) and minimal feature engineering.
+
+Comment on whether additional feature engineering than what is required results in a significantly better CV (or, OOB) error or not for the tree-based methods.
+
+
+```{r}
+# write your R code here
+set.seed(2088)
+
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3 (TO BE GRADED)
+
+In this question, you will work with the `vowels.rds` data. The task is to predict `letter` (five vowels) using the rest of the variables in the data (predictors).
+
+```{r}
+vowels <- readRDS("vowels.rds")    # load dataset
+```
+
+
+Compare the performance (in terms of **Accuracy**) of the following models. Choose the optimal hyperparameters using CV.
+
+* A KNN classifier,
+
+* a single classification tree,
+
+* a bagged trees model,
+
+* a random forest model, and
+
+* a gradient boosting model.
+
+
+**Perform the following tasks.**
+
+* Investigate the dataset and complete any necessary tasks. **Write a brief description of your findings.**
+
+```{r}
+# write your R code here
+library(caret)
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Split the data into training and test sets (70-30).
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+
+
+
+
+```
+
+
+* Perform required data preprocessing and create the blueprint. If using `step_dummy()`, set `one_hot = FALSE`. Prepare the blueprint on the training data. Obtain the modified training and test datasets. **Provide brief explanations/reasoning of your feature engineering steps.**
+
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+library(recipes)
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Implement 5-fold CV repeated 5 times for each of the models above. 
+
+```{r}
+# write your R code here
+set.seed(2088)
+library(caret)
+library(recipes)
+library(rpart)
+library(rpart.plot)
+library(ipred)
+library(e1071)
+library(ranger)
+library(gbm)
+
+
+
+
+
+k_grid <- expand.grid(k = seq(1, 101, by = 10))    # for KNN
+
+
+
+
+# use tuneLength = 20 for the single regression tree
+
+
+
+
+param_grid_rf <- expand.grid(mtry = seq(1, 16, 1),    # for random forests
+                             splitrule = "gini",
+                             min.node.size = 2)
+
+
+
+# use tuneLength = 5 for the gradient boosting model
+
+
+
+
+```
+
+
+* Report the optimal CV (or, OOB) Accuracy of each model. Report the optimal hyperparameters for each model. Which model performs best in this situation? 
+
+```{r}
+# write your R code here
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+* Build the final model. Obtain class label predictions on the test set. Create the corresponding confusion matrix and report the test set accuracy. 
+
+```{r}
+# write your R code here
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 4
+
+Now, consider only the tree-based methods from Question 3. We know that trees require minimal feature engineering (only require missing entry imputation). 
+
+Create a new blueprint with the minimal feature engineering steps if required. Prepare this blueprint on the training data. Obtain the modified training and test datasets.
+
+Now, implement CV with the new blueprint on the tree-based methods from Question 3. Compare the optimal CV (or, OOB) Accuracy and optimal hyperparameter values for these methods with full (from Question 3) and minimal feature engineering.
+
+Comment on whether additional feature engineering than what is required results in a significantly better CV (or, OOB) Accuracy or not for the tree-based methods.
+
+
+```{r}
+# write your R code here
+set.seed(2088)
+
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+

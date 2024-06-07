@@ -1,0 +1,184 @@
+---
+title: "Machine Learning - Homework 9"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**Since this is going to be peer-reviewed anonymously, please don't indicate your name on the assignment or the file name.** 
+
+
+# Objectives
+
+* Practice with the overall ML process
+
+* Practice with support-vector-based methods
+
+* Practice with tree-based methods
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1 (TO BE GRADED)
+
+For this question, you will work with the **KhanTrain.rds**  and **KhanTest.rds** datasets. Please load the datasets using the following code.
+
+```{r}
+KhanTrain <- readRDS("KhanTrain.rds")   # training data
+
+KhanTest <- readRDS("KhanTest.rds")    # test data
+```
+
+The datasets consist of a number of tissue samples corresponding to two distinct types of small round blue cell tumors. For each tissue sample, 2308 gene expression measurements are available. Note that the number of features is significantly higher than the number of observations, unlike any of the datasets we have used this term. 
+
+Consider `type` as the response variable and the rest of the variables as predictors. 
+
+**The features have been measured on a similar scale, so further centering and scaling is not necessary. The datasets have no missing entries and no zv/nzv features. A blueprint is not required for this dataset.**
+
+
+Compare the performance (in terms of **Accuracy**) of the following models with the respective optimal hyperparameters chosen by CV.
+
+* a logistic regression model,
+
+* a KNN classifier,
+
+* a support vector classifier,
+
+* an SVM with polynomial kernel, and
+
+* an SVM with radial kernel.
+
+
+**Perform the following tasks.**
+
+* Implement 5-fold CV (1 repeat) on the training set and obtain the optimal tuning parameters and respective CV accuracies for each of the above techniques.
+
+```{r}
+# write your R code here
+set.seed(2089)
+library(tidyverse)
+library(caret)
+library(recipes)
+library(kernlab)
+
+
+# grid of hyperparameters 
+k_grid <- expand.grid(k = seq(1, 10, by = 1))    # for KNN
+
+param_grid_linear <- expand.grid(C = c(0.001, 0.1, 1, 5, 10, 100))    # for support vector classifier
+
+param_grid_poly <- expand.grid(degree = c(1, 2, 3),
+                               scale = c(0.5, 1, 1.5, 2), 
+                               C = c(0.001, 0.1, 1, 5, 10, 100))      # for SVM with polynomial kernel
+
+param_grid_radial <- expand.grid(sigma = c(0.5, 1, 1.5, 2),
+                                 C = c(0.001, 0.1, 1, 5, 10, 100))    # for SVM with radial kernel
+
+
+
+
+
+
+
+
+
+```
+
+
+* Report the optimal CV accuracy of each model. Report the optimal hyperparameters for each model. Which model performs best in this situation? 
+
+```{r}
+# write your R code here
+set.seed(2089)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Fit the optimal model to the training data and obtain class label predictions on the test data. Obtain the confusion matrix and report the test set accuracy.  (Hint: see help page of `predict.ksvm` function if required.)
+
+```{r}
+# write your R code here
+set.seed(2089)
+
+
+
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+* Which of the support-vector-based methods takes the longest to train during CV? Why do you think that is the case? (Hint: see the grid of hyperparameters)
+
+```{}
+# write your answer here
+
+
+
+
+
+```
+
+
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2
+
+(a) How does bagging multiple trees provide an improvement over a single decision tree? Explain in terms of the bias-variance trade-off.
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(b) How does random forests provide an improvement over bagging multiple trees? Explain in terms of the bias-variance trade-off.
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(c) List one similarity and one dissimilarity between random forests and gradient boosting trees.
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+
+### ----------------------------------------------------------------------------
+

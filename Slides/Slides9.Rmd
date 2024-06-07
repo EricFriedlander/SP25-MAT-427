@@ -1,0 +1,1994 @@
+---
+title: 'CMSC/LING/STAT 208: Machine Learning'
+author: "Abhishek Chakraborty [Much of the content in these slides have been adapted from *ISLR2* by James et al. and *HOMLR* by Boehmke & Greenwell]"
+output: ioslides_presentation
+#output: pdf_document
+#output: html_document
+# output: beamer_presentation
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(caret)
+library(kernlab)
+library(recipes)
+library(grid)
+library(gridExtra)
+library(lattice)
+library(MASS)
+library(RColorBrewer)
+library(ISLR)
+library(ggpubr)
+library(glmnet)
+library(rpart)
+library(ipred)
+library(e1071)
+library(ranger)
+library(gbm)
+library(kernlab)
+library(vip)
+```
+
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+  .col3 {
+    columns: 3 100px;
+    -webkit-columns: 3 100px;
+    -moz-columns: 3 100px;
+  }
+</style>
+
+
+## Support Vector Machines (SVM)
+
+* One of the best "out of the box" classifiers.
+
+* Mostly intended for two-class classification problems.
+
+Idea: **Try and find a plane that separates the classes in some feature space**.
+
+* We will talk about
+    + Maximal Margin Classifier
+    + Support Vector Classifier
+    + Support Vector Machine
+    
+
+## SVM: Motivation 1
+
+```{r, echo=FALSE, fig.align='center'}
+## color, theme, function set ##############################################################################
+
+dark2 <- RColorBrewer::brewer.pal(8, "Dark2")
+set1 <- RColorBrewer::brewer.pal(9, "Set1")
+
+
+## Fig 14.2 ##############################################################################
+
+# Simulate data
+set.seed(805)
+norm2d <- as.data.frame(mlbench::mlbench.2dnormals(
+  n = 100,
+  cl = 2,
+  r = 4,
+  sd = 1
+))
+names(norm2d) <- c("x1", "x2", "y")  # rename columns
+# str(norm2d)
+norm2d$x1 <- as.numeric(scale(norm2d$x1))
+norm2d$x2 <- as.numeric(scale(norm2d$x2))
+# summary(norm2d); sd(norm2d$x1); sd(norm2d$x2)
+norm2d$Y <- as.factor(ifelse(norm2d$y == "1", "1", "-1"))
+norm2d$y <- NULL
+names(norm2d) <- c("x1", "x2", "y")  # rename columns
+norm2d$y <- factor(norm2d$y, levels = c("1", "-1"))
+
+# Scatterplot
+ggplot(norm2d, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +  # used to be -6 to 6
+  ylim(-2, 2) +  # used to be -6 to 6
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+  name = "Owns a riding\nmower?",
+  breaks = c(1, -1),
+  labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  )
+
+# p1
+
+```
+
+
+## SVM: Motivation 2
+
+```{r, echo=FALSE, fig.align='center'}
+# norm2db <- data.frame("x1" = c(0.5, 1.1, -0.5, 1.7), 
+#                       "x2" = c(1,  0.9, -1, 1.1), 
+#                       "y" = c(-1, -1, 1, -1))
+# norm2db <- rbind(norm2d, norm2db)
+
+svcdata <- readRDS("svcdata.rds")
+
+ggplot(svcdata, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +  # used to be -6 to 6
+  ylim(-2, 2) +  # used to be -6 to 6
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  )
+
+# p1b
+```
+
+
+## SVM: Motivation 3
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+circle <- readRDS("circle.rds")
+
+ggplot(circle, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-1.25, 1.25) +
+  ylim(-1.25, 1.25) +
+  coord_fixed() +
+  theme_bw() + theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+
+   
+```
+
+
+## SVM: Motivation 4
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+spirals <- readRDS("spirals.rds")
+
+ggplot(spirals, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-2, 2) +
+  ylim(-2, 2) +
+  coord_fixed() +
+  theme_bw() + theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+```
+
+
+## Hyperplane
+
+* In $p$-dimensions,  a **hyperplane** is a flat affine subspace of dimension $p-1$.
+
+* Mathematical form of a hyperplane
+
+```{r , echo=FALSE,  fig.align='center', out.width = '70%'}
+knitr::include_graphics("EFT/e9.2.png")
+```
+
+* When $p=2$, a hyperplane is a line.
+
+```{r , echo=FALSE,  fig.align='center', out.width = '40%'}
+knitr::include_graphics("EFT/e9.1.png")
+```
+
+* If $\beta_0=0$, the hyperplane goes through the origin, otherwise not.
+
+* A hyperplane divides the $p$-dim space into 2 halves.
+
+```{r , echo=FALSE,  fig.align='center', out.width = '50%'}
+knitr::include_graphics("EFT/e9.3.png")
+```
+
+```{r , echo=FALSE,  fig.align='center', out.width = '50%'}
+knitr::include_graphics("EFT/e9.4.png")
+```
+
+## Hyperplane
+
+**Hyperplane in 2-dimensions: $1+2X_1+3X_2$ = 0**
+
+```{r , echo=FALSE,  fig.align='center', out.width = '70%'}
+knitr::include_graphics("EFT/9.1.png")
+```
+
+
+## Hyperplane
+
+**Hyperplane in 3-dimensions: $1+2X_1+3X_2-X_3=0$**
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+
+# Plotting function; modified from svmpath::svmpath()
+plot_svmpath <- function(x, step = max(x$Step), main = "") {
+  
+  # Extract model info
+  object <- x
+  f <- predict(object, lambda = object$lambda[step], type = "function")
+  x <- object$x
+  y <- object$y
+  Elbow <- object$Elbow[[step]]
+  alpha <- object$alpha[, step]
+  alpha0 <- object$alpha0[step]
+  lambda <- object$lambda[step]
+  df <- as.data.frame(x[, 1L:2L])
+  names(df) <- c("x1", "x2")
+  df$y <- norm2d$y
+  beta <- (alpha * y) %*% x
+  
+  # Construct plot
+  ggplot(df, aes(x = x1, y = x2)) +
+    geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+    xlab("Income (standardized)") +
+    ylab("Lot size (standardized)") +
+    xlim(-3, 3) +
+    ylim(-2, 2) +
+    coord_fixed() +
+    theme(legend.position = "none") +
+    theme_bw() +
+    scale_shape_discrete(
+      name = "Owns a riding\nmower?",
+      breaks = c(1, -1),
+      labels = c("Yes", "No")
+    ) +
+    scale_color_brewer(
+      name = "Owns a riding\nmower?",
+      palette = "Dark2",
+      breaks = c(1, -1),
+      labels = c("Yes", "No")
+    ) +
+    geom_abline(intercept = -alpha0/beta[2], slope = -beta[1]/beta[2], 
+                color = "black") +
+    geom_abline(intercept = lambda/beta[2] - alpha0/beta[2], 
+                slope = -beta[1]/beta[2], 
+                color = "black", linetype = 2) +
+    geom_abline(intercept = -lambda/beta[2] - alpha0/beta[2], 
+                slope = -beta[1]/beta[2], 
+                color = "black", linetype = 2) +
+    geom_point(data = df[Elbow, ], size = 3) +
+    ggtitle(main)
+  
+}
+
+## Fig 14.1 ##############################################################################
+
+# Construct data for plotting
+x1 <- x2 <- seq(from = 0, to = 1, length = 100)
+xgrid <- expand.grid(x1 = x1, x2 = x2)
+y1 <- -(1/3) + (-2/3) * x1
+y2 <- 1 + 2 * xgrid$x1 + 3 * xgrid$x2
+
+# Hyperplane: p = 2
+# p1 <- lattice::xyplot(
+#   x = y1 ~ x1, 
+#   type = "l", 
+#   col = "black", 
+#   xlab = expression(X[1]), 
+#   ylab = expression(X[2]),
+#   main = expression({f(X)==1+2*X[1]+3*X[2]}==0),
+#   scales = list(tck = c(1, 0))
+# )
+
+# Hyperplane: p = 3
+lattice::wireframe(
+  x = y2 ~ xgrid$x1 * xgrid$x2, 
+  xlab = expression(X[1]), 
+  ylab = expression(X[2]),
+  zlab = expression(X[3]),
+  main = expression({1+2*X[1]+3*X[2]-X[3]}==0),
+  drape = TRUE,
+  colorkey = FALSE,
+  col = dark2[1],
+  scales = list(arrows = FALSE)
+  # par.settings = list(axis.line = list(col = "transparent"))
+)
+# p2
+```
+
+
+## Separating Hyperplane
+
+For a two-class problem, suppose that it is possible to construct a hyperplane that separates the training observations perfectly according to their class labels.
+
+Such a hyperplane is known as a **separating hyperplane**.
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '80%'} -->
+<!-- knitr::include_graphics("EFT/9.2.png") -->
+<!-- ``` -->
+
+<!-- Henceforth, $f(x_i)=\beta_0+\beta_1 \ x_{i1}+\beta_2 \ x_{i2} + \ldots + \beta_p \ x_{ip}$. -->
+
+
+```{r, echo=FALSE, fig.align='center'}
+## Fig 14.2 ##############################################################################
+
+# Simulate data
+# set.seed(805)
+# norm2d <- as.data.frame(mlbench::mlbench.2dnormals(
+#   n = 100,
+#   cl = 2,
+#   r = 4,
+#   sd = 1
+# ))
+# names(norm2d) <- c("x1", "x2", "y")  # rename columns
+# # str(norm2d)
+# norm2d$x1 <- as.numeric(scale(norm2d$x1))
+# norm2d$x2 <- as.numeric(scale(norm2d$x2))
+# # summary(norm2d); sd(norm2d$x1); sd(norm2d$x2)
+# norm2d$Y <- as.factor(ifelse(norm2d$y == "1", "1", "-1"))
+# norm2d$y <- NULL
+# names(norm2d) <- c("x1", "x2", "y")  # rename columns
+# norm2d$y <- factor(norm2d$y, levels = c("1", "-1"))
+# 
+# Scatterplot
+ggplot(norm2d, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +  # used to be -6 to 6
+  ylim(-2, 2) +  # used to be -6 to 6
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  )
+
+# p1
+
+```
+
+
+
+## Separating Hyperplane
+
+For a $p$-dimensional two-class problem,
+
+```{r , echo=FALSE,  fig.align='center', out.width = '70%'}
+knitr::include_graphics("EFT/e9.6-7.png")
+```
+
+Equivalently, for $i=1,2,\ldots,n$
+
+```{r , echo=FALSE,  fig.align='center', out.width = '70%'}
+knitr::include_graphics("EFT/e9.8.png")
+```
+
+Consider a test observation $x^*$, we compute $f(x^*) = \beta_0 + \beta_1 \ x^*_1 + \beta_2 \ x^*_2 + \ldots + \beta_p \ x^*_p$
+
+If $f(x^*)$ is positive, assign class label 1, otherwise, assign class label -1. 
+
+**A classifier based on a separating hyperplane leads to a linear decision boundary.**
+
+
+## Optimal Separating Hyperplane (OSH)
+
+This is also known as the **maximal margin classifier (MMC)** or **hard margin classifier (HMC)**.
+
+* One that makes the biggest gap or **margin** between the two classes.
+
+* One that is farthest from the training observations.
+
+**Margin**: The minimal (perpendicular) distance from the observations to the hyperplane. Denoted by $M$.
+
+The maximal margin hyperplane is the separating hyperplane for which the margin is largest, that is, the hyperplane that has the farthest minimum distance to the training observations.
+
+
+## Optimal Separating Hyperplane
+
+```{r, echo=FALSE,  fig.align='center', message=FALSE}
+fit_hmc1 <- ksvm(  # use ksvm() to find the OSH
+  x = data.matrix(norm2d[c("x1", "x2")]),
+  y = as.factor(norm2d$y), 
+  kernel = "vanilladot",  # no fancy kernel, just ordinary dot product
+  C = Inf,                # to approximate hard margin classifier
+  prob.model = TRUE       # needed to obtain predicted probabilities
+)
+
+# Support vectors
+sv <- norm2d[fit_hmc1@alphaindex[[1L]], c("x1", "x2")]  # 16-th and 97-th observations
+
+# Compute the perpendicular bisector of the line segment joining the two support 
+# vectors
+slope <- -1 / ((sv[2L, 2L] - sv[1L, 2L]) / (sv[2L, 1L] - sv[1L, 1L]))
+midpoint <- apply(sv, 2, mean)
+
+# Scatterplot with convex hulls, etc.
+ggplot(norm2d, aes(x = x1, y = x2)) +
+  
+  # # Convex hulls
+  # geom_polygon(
+  #   data = norm2d[norm2d$y == 1, c("x1", "x2")][hpts1, c("x1", "x2")],
+  #   color = "black",
+  #   fill = "transparent"
+  # ) +
+  # geom_polygon(
+  #   data = norm2d[norm2d$y == 2, c("x1", "x2")][hpts2, c("x1", "x2")],
+  #   color = "black",
+  #   fill = "transparent"
+  # ) +
+  
+  # Scatterplot
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-10, 10) +
+  ylim(-10, 10) +
+  # coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  
+  # Decision boundary
+  geom_abline(
+    intercept = -slope * midpoint[1L] + midpoint[2L], 
+    slope = slope
+  ) +
+  
+  # Margin boundaries (shaded in)
+  geom_abline(
+    intercept = -slope * sv[1L, 1L] + sv[1L, 2L], 
+    slope = slope,
+    linetype = 2
+  ) +
+  geom_abline(
+    intercept = -slope * sv[2L, 1L] + sv[2L, 2L], 
+    slope = slope,
+    linetype = 2
+  ) +
+  annotate(
+    geom = "polygon", 
+    x = c(-7, -7, 7, 7), 
+    y = c(-slope * sv[1L, 1L] + sv[1L, 2L] - 7 * slope, 
+          -slope * midpoint[1L] + midpoint[2L] - 7 * slope, 
+          -slope * midpoint[1L] + midpoint[2L] + 7 * slope,
+          -slope * sv[1L, 1L] + sv[1L, 2L] + 7 * slope),
+    alpha = 0.1, 
+    color = "transparent",
+    fill = dark2[2]
+  ) +
+  annotate(
+    geom = "polygon", 
+    x = c(-7, -7, 7, 7), 
+    y = c(-slope * sv[2L, 1L] + sv[2L, 2L] - 7 * slope,
+          -slope * midpoint[1L] + midpoint[2L] - 7 * slope,
+          -slope * midpoint[1L] + midpoint[2L] + 7 * slope,
+          -slope * sv[2L, 1L] + sv[2L, 2L] + 7 * slope), 
+    alpha = 0.1, 
+    color = "transparent",
+    fill = dark2[2]
+  ) +
+  
+  # Arrows, labels, etc.
+  annotate("segment",
+           x = sv[1L, 1L], y = sv[1L, 2L], xend = sv[2L, 1L], yend = sv[2L, 2L], 
+           # alpha = 0.5,
+           linetype = 3
+           # arrow = arrow(length = unit(0.03, units = "npc"), ends = "both")
+  ) +
+  geom_curve(x = -3, y = 4.5, xend = 0, yend = 5, 
+             arrow = arrow(length = unit(0.03, units = "npc"))) +
+  annotate("text", label = "Width = M", x = 0.45, y = 5.45, size = 5) +
+  geom_curve(x = 2, y = -3, xend = 0, yend = -5, 
+             arrow = arrow(length = unit(0.03, units = "npc"))) +
+  annotate("text", label = "Width = M", x = 0, y = -5.35, size = 5) +
+  
+  # Support vectors
+  annotate("point", x = sv$x1[1], y = sv$x2[1], shape = 17, color = "red", 
+           size = 3) +
+  annotate("point", x = sv$x1[2], y = sv$x2[2], shape = 16, color = "red", 
+           size = 3) +
+  # geom_point(data = cbind(sv, y = c("2", "1")), aes(shape = y),
+  #            size = 4, color = "red") +
+  
+  # Zoom in
+  coord_fixed(xlim = c(-3, 3), ylim = c(-2, 2))   # used to be from -6 to 6
+
+```
+
+<!-- ## Maximal Margin Classifier -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '70%'} -->
+<!-- knitr::include_graphics("EFT/9.3.png") -->
+<!-- ``` -->
+
+## Optimal Separating Hyperplane
+
+```{r , echo=FALSE,  fig.align='center', out.width = '100%'}
+knitr::include_graphics("EFT/e9.9-11.png")
+```
+
+The second constraint guarantees that each observation will be on the correct side of the hyperplane ($M$ positive).
+
+The first constraint ensures that the perpendicular distance from $i^{th}$ observation to the hyperplane is
+$$y_i \left( \beta_0+\beta_1 \ x_{i1}+\beta_2 \ x_{i2} + \ldots + \beta_p \ x_{ip}\right)$$
+
+
+## Optimal Separating Hyperplane: Issue 1
+
+The optimal separating hyperplane fits the data too hard.
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("SVMissue1.png") -->
+<!-- ``` -->
+
+
+```{r, echo=FALSE, fig.align='center', message=FALSE, results='hide', fig.width=6, fig.height=5}
+## Fig 14.4 ##############################################################################
+
+# Add an outlier
+# norm2da <- data.frame("x1" = 0.13, "x2" = 0.32, "y" = -1)
+norm2da <- data.frame("x1" = 0.2, "x2" = 0.5, "y" = -1)
+norm2da <- rbind(norm2d, norm2da)
+
+ggplot(norm2da, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +  # used to be -6 to 6
+  ylim(-2, 2) +  # used to be -6 to 6
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  )
+
+```
+
+
+## Optimal Separating Hyperplane: Issue 1
+
+The optimal separating hyperplane fits the data too hard.
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("SVMissue1.png") -->
+<!-- ``` -->
+
+
+```{r, echo=FALSE, fig.align='center', message=FALSE, results='hide'}
+## Fig 14.4 ##############################################################################
+
+# Add an outlier
+# norm2da <- data.frame("x1" = 0.13, "x2" = 0.32, "y" = -1)
+norm2da <- data.frame("x1" = 0.2, "x2" = 0.5, "y" = -1)
+norm2da <- rbind(norm2d, norm2da)
+
+fit_hmc2 <- ksvm(  # use ksvm() to find the OSH
+  x = data.matrix(norm2da[c("x1", "x2")]),
+  y = as.factor(norm2da$y), 
+  kernel = "vanilladot",  # no fancy kernel, just ordinary dot product
+  C = Inf,                # to approximate hard margin classifier
+  prob.model = TRUE       # needed to obtain predicted probabilities
+)
+
+# fit_hmc <- ksvm(y ~ ., data = norm2d,
+#   kernel = "vanilladot",  # no fancy kernel, just ordinary dot product
+#   C = Inf,                # to approximate hard margin classifier
+#   prob.model = TRUE       # needed to obtain predicted probabilities
+# )
+
+# Grid over which to evaluate decision boundaries
+npts <- 500
+xgrid <- expand.grid(
+  x1 = seq(from = -2, 2, length = npts),
+  x2 = seq(from = -2, 2, length = npts)
+)
+
+# Predicted probabilities (as a two-column matrix)
+# prob_glm <- predict(fit_glm, newdata = xgrid, type = "response")
+# prob_glm <- cbind("1" = 1 - prob_glm, "2" = prob_glm)
+# prob_lda <- predict(fit_lda, newdata = xgrid)$posterior
+prob_hmc1 <- predict(fit_hmc1, newdata = xgrid, type = "probabilities")
+prob_hmc2 <- predict(fit_hmc2, newdata = xgrid, type = "probabilities")
+
+# Add predicted class probabilities
+xgrid2 <- xgrid %>%
+  cbind(
+    # "GLM" = prob_glm[, 1L], 
+    #     "LDA" = prob_lda[, 1L], 
+    "OSH1" = prob_hmc1[, 1L],
+    "OSH2" = prob_hmc2[, 1L]) %>%
+  tidyr::gather(Model, Prob, -x1, -x2)
+
+# Scatterplot
+ggplot(norm2da, aes(x = x1, y = x2)) +
+  
+  # # Label outlier
+  # geom_curve(x = tail(norm2d, n = 1)$x1 - 0.2, y = tail(norm2d, n = 1)$x2 - 0.2, 
+  #            xend = -4, yend = 3, curvature = -0.5, angle = 90,
+  #            arrow = arrow(length = unit(0.03, units = "npc"))) +
+  # annotate("text", label = "Outlier?", x = -4, y = 3.5, size = 5) +
+  
+  # Scatterplot, etc.
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +
+  ylim(-2, 2) +
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  stat_contour(data = xgrid2, aes(x = x1, y = x2, z = Prob, linetype = Model), 
+               breaks = 0.5, color = "black") 
+
+
+```
+
+
+## Optimal Separating Hyperplane: Issue 2
+
+An optimal separating hyperplane may not always be possible to construct, that is, non-separable data. This is often the case, unless $n<p$.
+
+```{r, echo=FALSE, fig.align='center'}
+# norm2db <- data.frame("x1" = c(0.5, 1.1, -0.5, 1.7), 
+#                       "x2" = c(1,  0.9, -1, 1.1), 
+#                       "y" = c(-1, -1, 1, -1))
+# norm2d <- rbind(norm2d, norm2db)
+# 
+
+svcdata <- readRDS("svcdata.rds")
+
+ggplot(svcdata, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +  # used to be -6 to 6
+  ylim(-2, 2) +  # used to be -6 to 6
+  coord_fixed() +
+  theme_bw() + theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  )
+
+# p1b
+```
+
+<!-- ## Non-separable Data -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '80%'} -->
+<!-- knitr::include_graphics("EFT/9.4.png") -->
+<!-- ``` -->
+
+<!-- The data are not separable by a linear boundary. This is often the case, unless $n<p$. -->
+
+<!-- ## Noisy Data -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/9.5.png") -->
+<!-- ``` -->
+
+<!-- The data are separable, but noisy. Leads to an unsatisfactory maximal margin hyperplane. -->
+
+
+## Support Vector Classifier (SVC)
+
+We might be willing to misclassify a few observations for
+
+* greater robustness to individual observations, and
+
+* better classify **most** of the observations.
+
+This leads us to the **support vector classifier**. Also called the **soft margin classifier**.
+
+The margin is **soft** because it can be violated by some of the training observations.
+
+
+## Support Vector Classifier
+
+```{r , echo=FALSE,  fig.align='center', out.width = '100%'}
+knitr::include_graphics("EFT/e9.12-15.png")
+```
+
+$M$: width of the margin
+
+$\epsilon_1, \ldots, \epsilon_n$: **Slack variables**
+
+$C$: **Budget** (tuning parameter)
+
+
+## Support Vector Classifier
+
+* $\epsilon_i=0$:
+
+* $\epsilon_i>0$:
+
+* $\epsilon_i>1$:
+
+* Support vectors:
+
+* $C=0$:
+
+* $C>0$:
+
+
+
+
+## Support Vector Classifier
+
+```{r , echo=FALSE,  fig.align='center', out.width = '100%', fig.cap="Figure adapted from *Hands-On Machine Learning with R*, Boehmke and Greenwell"}
+knitr::include_graphics("EFT/SVC_C.png")
+```
+
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '80%'} -->
+<!-- knitr::include_graphics("EFT/9.6.png") -->
+<!-- ``` -->
+
+<!-- ```{r, echo=FALSE, fig.align='center'} -->
+<!-- # DID NOT GET TO WORK -->
+<!-- # Fit the entire regularization path -->
+
+<!-- norm2da2 <- rbind(norm2d, data.frame("x1" = 0.2, "x2" = 0.5, "y" = -1)) -->
+
+<!-- library(svmpath) -->
+
+<!-- fit_smc <- svmpath( -->
+<!--   x = data.matrix(norm2da2[c("x1", "x2")]), -->
+<!--   y = as.integer(as.character(norm2da2$y)) -->
+<!--   # y = ifelse(norm2da2$y == 1, 1, -1) -->
+<!-- ) -->
+<!-- # Plot both extremes -->
+<!-- p1 <- plot_svmpath(fit_smc, step = max(fit_smc$Step), main = expression(C == 0)) -->
+<!-- p2 <- plot_svmpath(fit_smc, step = min(fit_smc$Step), main = expression(C == infinity)) -->
+
+<!-- gridExtra::grid.arrange(p1, p2, nrow = 1) -->
+
+<!-- ``` -->
+
+
+<!-- ## Support Vector Classifier: Bias-Variance Trade-Off {.smaller} -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '70%'} -->
+<!-- knitr::include_graphics("EFT/9.7.png") -->
+<!-- ``` -->
+
+
+## Support Vector Classifier {.smaller}
+
+```{r, message=FALSE}
+set.seed(052323)   # set seed
+
+# implement CV to find optimal C
+svc_cv <- train(y ~ ., 
+                data = svcdata,
+                method = "svmLinear",               
+                trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5),
+                tuneLength = 20,
+                metric = "Accuracy")
+
+svc_cv$bestTune   # optimal C
+
+# fit model with optimal C
+final_model_svc <- ksvm(y ~ .,
+                        data = svcdata,
+                        kernel = "vanilladot",  
+                        C = svc_cv$bestTune$C,                
+                        prob.model = TRUE)       # needed to obtain predicted probabilities
+
+```
+
+
+## Support Vector Classifier
+
+```{r}
+final_model_svc   # number of support vectors
+
+alphaindex(final_model_svc)   # which observations are support vectors
+```
+
+
+## Support Vector Classifier
+
+```{r, echo=FALSE, fig.align='center'}
+# values considered for plotting
+npts <- 500
+xgrid <- expand.grid(x1 = seq(from = -2, 2, length = npts),
+                     x2 = seq(from = -2, 2, length = npts))
+
+# fitted probabilities
+prob_svc <- predict(final_model_svc, newdata = xgrid, type = "probabilities")
+
+# add predicted class probabilities
+xgrid2 <- xgrid %>% cbind(Prob = prob_svc[, 1L]) 
+
+# scatterplot
+ggplot(svcdata, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  # xlab("Income (standardized)") +
+  # ylab("Lot size (standardized)") +
+  xlim(-3, 3) +
+  ylim(-2, 2) +
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_shape_discrete(
+    name = "Owns a riding\nmower?",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  scale_color_brewer(
+    name = "Owns a riding\nmower?",
+    palette = "Dark2",
+    breaks = c(1, -1),
+    labels = c("Yes", "No")
+  ) +
+  stat_contour(data = xgrid2, aes(x = x1, y = x2, z = Prob), 
+               breaks = 0.5, color = "black") 
+```
+
+
+
+<!-- ## Support Vector Classifier -->
+
+<!-- ```{r, fig.align='center'} -->
+<!-- plot(final_model_svc) -->
+<!-- ``` -->
+
+
+## Non-linear Boundaries
+
+**Why support vector classifiers are not enough?**
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/9.8.png") -->
+<!-- ``` -->
+
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+## Fig 14.6 ##############################################################################
+
+# Simulate data
+# set.seed(1432)
+# circle <- as.data.frame(mlbench::mlbench.circle(
+#   n = 200,
+#   d = 2
+# ))
+# names(circle) <- c("x1", "x2", "y")  # rename columns
+
+ggplot(circle, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-1.25, 1.25) +
+  ylim(-1.25, 1.25) +
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+
+# +
+#   stat_contour(data = xgrid2, aes(x = x1, y = x2, z = Prob), 
+#                breaks = 0.5, color = "black") 
+
+```
+
+
+## Feature Expansion
+
+Feature space has been enlarged by adding a third feature, $X_3 = X^2_1 + X^2_2$
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+# Enlarge feature space
+circle_3d <- circle
+circle_3d$x3 <- circle_3d$x1^2 + circle_3d$x2^2
+
+# 3-D scatterplot
+cloud(
+  x = x3 ~ x1 * x2, 
+  data = circle_3d, 
+  groups = y,
+  main = "enlarged feature space",
+  par.settings = list(
+    superpose.symbol = list(
+      pch = 19,
+      cex = 1,
+      col = adjustcolor(dark2[1L:2L], alpha.f = 0.5)
+    )
+  )
+) 
+
+# p2cloud
+```
+
+
+
+## Feature Expansion
+
+* The problem of non-linear boundaries can be solved by enlarging the feature space (like in linear regression) using transformations of predictors.
+
+* Fit a support vector classifier in the enlarged space.
+
+* Results in non-linear boundaries in the original space.
+
+<!-- Consider $p$ original features $X_1, X_2, \ldots, X_p$ -->
+
+<!-- Make $2p$ features $X_1, X^2_1, X_2, X^2_2, \ldots, X_p, X^2_p$ -->
+
+<!-- Then, we have -->
+<!-- $$\beta_0+\beta_{11} \ x_{i1}+\beta_{12} \ x^2_{i1}+\beta_{21} \ x_{i2}+\beta_{22} \ x^2_{i2}+ \ldots + \beta_{p1} \ x_{ip}+\beta_{p2} \ x^2_{ip}$$ -->
+
+
+## Feature Expansion
+
+```{r, echo=FALSE, fig.align='center', fig.width=9, fig.height=6}
+## self created example #################################################################
+
+set.seed(1)
+x=rnorm(5,0,1)
+y=c(1L,1L,2L,2L,1L)
+d1=data.frame(x1=x,x2=0,y=as.factor(y))
+d2=data.frame(x1=x,x2=x^2,y=as.factor(y))
+
+# par(mfrow=c(1,2))
+# plot(d1$x1,d1$x2,col=y, main="d=1", xlab="x", ylab="", yaxt='n')
+# plot(d2$x1,d2$x2,col=y, main="d=2", xlab="x", ylab="x^2")
+
+g1 <- ggplot(data = d1, aes(x = x1, y = 0)) +
+  geom_point(aes(color = y, shape = y), size = 5) +
+  theme(axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  labs(title = "original feature space", x = expression(x), y = "") +
+  scale_x_continuous(limits = c(-0.9, 1.7), breaks = c(-1, -0.5, 0, 0.5, 1, 1.5, 2)) +
+  theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+# +
+#   scale_color_discrete(labels = c(1, -1), "Class") 
+  
+# g1
+
+g2 <- ggplot(data = d2, aes(x = x1, y = x2)) +
+  geom_point(aes(color = y, shape = y), size = 5) +
+  # theme(axis.text.y = element_blank(),
+  #       axis.ticks.y = element_blank()) +
+  labs(title = "enlarged feature space", x = expression(x), y = expression(x^2)) +
+  scale_x_continuous(limits = c(-0.9, 1.7), breaks = c(-1, -0.5, 0, 0.5, 1, 1.5, 2)) +
+  theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+# +
+#   scale_color_discrete(labels = c(1, -1), "Class")
+
+# g2
+
+ggarrange(g1, g2, nrow = 1)
+
+
+```
+
+
+## Feature Expansion
+
+A **kernel function** quantifies the similarity between two observations. It helps in transforming the original feature space to an enlarged feature space where the data points can be separated by a linear boundary.
+
+Commonly used **kernel functions** are
+
+* **Polynomial Kernel of degree $d$**
+
+$$k(x_i, x_{i'}) = \left(1+scale\sum_{j=1}^{p} x_{ij} \ x_{i'j} \right)^{degree}$$
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '50%'} -->
+<!-- knitr::include_graphics("EFT/e9.22.png") -->
+<!-- ``` -->
+
+* **Radial Basis Function Kernel**
+
+$$k(x_i, x_{i'}) = \text{exp}\left(-\sigma\sum_{j=1}^{p} (x_{ij} - x_{i'j})^2 \right)$$
+
+
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '60%'} -->
+<!-- knitr::include_graphics("EFT/e9.24.png") -->
+<!-- ``` -->
+
+
+A support vector classifier with a non-linear kernel is known as a **support vector machine**.
+
+
+<!-- ## Feature Expansion -->
+
+
+<!-- ```{r, echo=FALSE, fig.align='center'} -->
+<!-- p2a <- ggplot(circle, aes(x = x1, y = x2)) + -->
+<!--   geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) + -->
+<!--   xlab(expression(X[1])) + -->
+<!--   ylab(expression(X[2])) + -->
+<!--   xlim(-1.25, 1.25) + -->
+<!--   ylim(-1.25, 1.25) + -->
+<!--   coord_fixed() + -->
+<!--   theme(legend.position = "none") + -->
+<!--   theme_bw() -->
+
+<!-- circle_3d <- circle -->
+<!-- circle_3d$x3 <- circle_3d$x1^2 + circle_3d$x2^2 -->
+
+<!-- # 3-D scatterplot -->
+<!-- p2b <- cloud( -->
+<!--   x = x3 ~ x1 * x2,  -->
+<!--   data = circle_3d,  -->
+<!--   groups = y, -->
+<!--   color = y,  -->
+<!--   main = "Enlarged feature space", -->
+<!--   par.settings = list( -->
+<!--     superpose.symbol = list( -->
+<!--       pch = 19, -->
+<!--       cex = 1, -->
+<!--       col = y -->
+<!--     ) -->
+<!--   ) -->
+<!-- ) -->
+<!-- # adjustcolor(dark2[1L:2L], alpha.f = 0.5) -->
+<!-- # Combine plots -->
+<!-- gridExtra::grid.arrange(p2a, p2b, nrow = 1) -->
+<!-- ``` -->
+
+
+## Non-linear Boundaries: Circle dataset {.smaller}
+
+We train an SVM with the polynomial kernel.
+
+```{r}
+set.seed(052323)   # set seed
+
+# implement CV to find optimal parameters
+param_grid_poly <- expand.grid(degree = c(1, 2, 3, 4),
+                          scale = c(0.5, 1, 2), 
+                          C = c(0.001, 0.1, 1, 10, 10))
+
+svm_poly_cv <- train(y ~ ., 
+                     data = circle,
+                     method = "svmPoly", 
+                     trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5),
+                     tuneGrid = param_grid_poly,
+                     metric = "Accuracy")
+                     
+
+svm_poly_cv$bestTune
+
+max(svm_poly_cv$results$Accuracy)
+```
+
+
+## Non-linear Boundaries: Circle dataset {.smaller}
+
+
+```{r}
+# fit model with optimal parameters
+final_model_svm_poly <- ksvm(y ~ ., 
+                             data = circle,
+                             kernel = "polydot",
+                             kpar = list(degree = svm_poly_cv$bestTune$degree,
+                                         scale = svm_poly_cv$bestTune$scale,
+                                         offset = 1),
+                             C = svm_poly_cv$bestTune$C,
+                             prob.model = TRUE)
+
+final_model_svm_poly
+```
+
+
+## Non-linear Boundaries: Circle dataset
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+# Grid over which to evaluate decision boundaries
+npts <- 500
+xgrid <- expand.grid(
+  x1 = seq(from = -1.25, 1.25, length = npts),
+  x2 = seq(from = -1.25, 1.25, length = npts)
+)
+
+# Predicted probabilities (as a two-column matrix)
+prob_svm_poly <- predict(final_model_svm_poly, newdata = xgrid, type = "probabilities")
+
+xgrid2 <- xgrid %>%
+  cbind(
+    # "RF" = prob_rfo[, 1L], 
+    Prob = prob_svm_poly[, 1L]) 
+
+
+ggplot(circle, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-1.25, 1.25) +
+  ylim(-1.25, 1.25) +
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  stat_contour(data = xgrid2, aes(x = x1, y = x2, z = Prob), 
+               breaks = 0.5, color = "black") +
+  scale_color_brewer(palette = "Dark2")
+
+```
+
+
+## Non-linear Boundaries: Spirals dataset
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+## Fig 14.6 ##############################################################################
+
+# Simulate data
+# set.seed(0841)
+# spirals <- as.data.frame(
+#   mlbench.spirals(300, cycles = 2, sd = 0.09)
+# )
+# names(spirals) <- c("x1", "x2", "y")
+
+ggplot(spirals, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-2, 2) +
+  ylim(-2, 2) +
+  coord_fixed() +
+  theme_bw() + theme(legend.position = "none") +
+  scale_color_brewer(palette = "Dark2")
+  
+```
+
+
+## Non-linear Boundaries: Spirals dataset {.smaller}
+
+We train an SVM with the radial basis function kernel.
+
+
+```{r}
+set.seed(052323)   # set seed
+
+# implement CV to find optimal parameters
+param_grid_radial <- expand.grid(sigma = c(0.5, 1, 1.5, 2),
+                                 C = c(0.001, 0.01, 1, 5, 10, 100))
+
+svm_radial_cv <- train(y ~ .,
+                       data = spirals,
+                       method = "svmRadial",
+                       tuneGrid = param_grid_radial,
+                       trControl = trainControl(method = "repeatedcv", number = 10, repeats = 5),
+                       metric = "Accuracy")
+
+svm_radial_cv$bestTune
+
+max(svm_radial_cv$results$Accuracy)
+```
+
+## Non-linear Boundaries: Spirals dataset {.smaller}
+
+```{r}
+# fit model with optimal parameters
+final_model_svm_radial <- ksvm(y ~ ., 
+                               data = spirals, 
+                               kernel = "rbfdot",
+                               kpar = list(sigma = svm_radial_cv$bestTune$sigma),
+                               C = svm_radial_cv$bestTune$C, 
+                               prob.model = TRUE)
+ 
+final_model_svm_radial
+```
+
+
+
+
+## Non-linear Boundaries: Spirals dataset
+
+
+```{r, echo=FALSE, fig.align='center', fig.width=5, fig.height=5}
+# Grid over which to evaluate decision boundaries
+npts <- 500
+xgrid <- expand.grid(
+  x1 = seq(from = -3, 2, length = npts),
+  x2 = seq(from = -3, 2, length = npts)
+)
+
+# Predicted probabilities (as a two-column matrix)
+# prob_rfo <- predict(spirals_rfo, data = xgrid)$predictions
+prob_svm <- predict(final_model_svm_radial, newdata = xgrid, type = "probabilities")
+
+
+
+xgrid2 <- xgrid %>%
+  cbind(Prob = prob_svm[, 1L]) 
+
+# Scatterplots with decision boundaries
+ggplot(spirals, aes(x = x1, y = x2)) +
+  geom_point(aes(shape = y, color = y), size = 3, alpha = 0.75) +
+  xlab(expression(X[1])) +
+  ylab(expression(X[2])) +
+  xlim(-3, 2) +
+  ylim(-3, 2) +
+  coord_fixed() +
+  theme_bw() +
+  theme(legend.position = "none") +
+  stat_contour(data = xgrid2, aes(x = x1, y = x2, z = Prob), 
+               breaks = 0.5, color = "black") +
+  scale_color_brewer(palette = "Dark2")
+```
+
+
+
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/e9.16.png") -->
+<!-- ``` -->
+
+<!-- Computations can become unmanageable if we end up with huge number of features. SVM leads to efficient computations through the use of **kernels**. -->
+
+
+
+
+
+
+<!-- ## Inner Products -->
+
+<!-- The **inner product** of two $p$-dimensional vectors $a$ and $b$ is $$\langle a,b \rangle=\displaystyle \sum_{j=1}^{p} a_j \ b_j=a_1b_1+a_2b_2+\ldots+a_pb_p$$ -->
+
+<!-- For two observations $x_i$ and $x_{i'}$, we have, -->
+<!-- $$\langle x_i,x_{i'} \rangle=\displaystyle \sum_{j=1}^{p} x_{ij} \ x_{i'j}$$ -->
+
+<!-- It turns out that the solution to the support vector classifier problem involves only the **inner products** of the observations. -->
+
+<!-- ## Inner Products and Support Vector Classifier -->
+
+<!-- The linear support vector classifier can be represented as -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '40%'} -->
+<!-- knitr::include_graphics("EFT/e9.18.png") -->
+<!-- ``` -->
+
+<!-- To estimate the parameters $\alpha_1,\ldots,\alpha_n$ and $\beta_0$, we need $n \choose 2$ inner products $\langle x_i,x_{i'} \rangle$ between all pairs of observations. -->
+
+<!-- It turns out that $\alpha_i$ is nonzero only for the support vectors in the solution. If $\mathcal{S}$ denotes the collection of indices of support vectors, -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '50%'} -->
+<!-- knitr::include_graphics("EFT/e9.19.png") -->
+<!-- ``` -->
+
+
+<!-- ## Inner Products and Support Vector Classifier -->
+
+<!-- For a test data point $x^*$, we have (say $p=2$ and $n=3$) -->
+<!-- $$f(x^*)=\beta_0+\displaystyle\sum_{i \in \mathcal{S}} \alpha_i \ \langle x^*,x_i \rangle \ \ \text{and} \ \ f(x^*)=\beta_0+\beta_1 \ x^*_1+\beta_2 \ x^*_2$$ -->
+
+<!-- ## Kernels -->
+
+<!-- Replace inner products $\langle x_i,x_{i'} \rangle$ with **kernels**. -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '20%'} -->
+<!-- knitr::include_graphics("EFT/e9.20.png") -->
+<!-- ``` -->
+
+<!-- We then have -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '50%'} -->
+<!-- knitr::include_graphics("EFT/e9.23.png") -->
+<!-- ``` -->
+
+<!-- A kernel quantifies the similarity between two observations. -->
+
+<!-- A support vector classifier is a special case if -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '40%'} -->
+<!-- knitr::include_graphics("EFT/e9.21.png") -->
+<!-- ``` -->
+
+
+<!-- ## Kernels -->
+
+<!-- **Polynomial Kernel of degree $d$** -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '50%'} -->
+<!-- knitr::include_graphics("EFT/e9.22.png") -->
+<!-- ``` -->
+
+<!-- **Radial Kernel** -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '60%'} -->
+<!-- knitr::include_graphics("EFT/e9.24.png") -->
+<!-- ``` -->
+
+
+<!-- A support vector classifier with a non-linear kernel is known as a **support vector machine**. -->
+
+<!-- ## Support Vector Machines (SVM) -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/9.9.png") -->
+<!-- ``` -->
+
+<!-- ## Support Vector Machines (SVM) -->
+
+<!-- **Heart dataset** -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/9.10.png") -->
+<!-- ``` -->
+
+<!-- ## Support Vector Machines (SVM) -->
+
+<!-- **Heart dataset** -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '100%'} -->
+<!-- knitr::include_graphics("EFT/9.11.png") -->
+<!-- ``` -->
+
+
+<!-- ## SVMs with More than Two Classes -->
+
+<!-- * **One-vs-One Classification**: Construct $K \choose 2$ SVMs for each pair of classes. Classify $x^*$ to the class that wins the most pairwise competitions. -->
+
+<!-- * **One-vs-All Classification**: Construct $K$ different 2-class SVMs. Classify $x^*$ to the class for which $\hat{f}_k(x^*)$ is largest. -->
+
+## Summary
+
+* SVMs are black-box algorithms. Lack interpretability.
+
+* One of the best methods for two-class classification problems.
+
+<!-- * SVMs have a close relationship with logistic regression. (Section 9.5) -->
+
+* If we wish to estimate probabilities, logistic regression is the way to go.
+
+* For non-linear boundaries, SVMs are popular.
+
+
+
+
+## Summary of Supervised Learning Methods
+
+
+| Method | R and/or C | Tuning Params | Feature Eng | Interpretable | Computation |
+| ------------- | ----- | ------------- | ------------- | ----- | ----- |
+| Linear Reg  |  |  |   |  |   |
+| Logistic Reg |  |  |   |  |   |
+| KNN |  |  |   |  |   |
+| LASSO |  |  |   |  |   |
+| Single tree |  |  |   |  |   |
+| Bagged trees |  |  |   |  |   |
+| Random forest |  |  |   |  |   |
+| Boosted trees |  |  |   |  |   |
+| SVM |  |  |   |  |   |
+
+
+## <span style="color:blue">Practice - Regression</span> 
+
+You will work with the **`boston.rds`** dataset. 
+
+The task is to predict **`medv`** (median value of owner-occupied homes in $1000s) using the rest of the variables as predictors.
+
+* Use a 70-30 split.
+
+* Use 5-fold CV with 1 repeat.
+
+* Parameter grids are in Rmd file.
+
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r, message=FALSE}
+boston <- readRDS("boston.rds")   # load dataset
+
+# response Y - 'medv'
+```
+
+```{r, eval=FALSE}
+glimpse(boston)   
+
+# all features are numerical except 'chas' which is nominal categorical (output not displayed here)
+```
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+summary(boston)  # missing entries in 'nox', 'dis'
+```
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+nearZeroVar(boston, saveMetrics = TRUE)   # no zv/nzv features
+```
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+set.seed(208)   
+
+# split the data into training and test sets
+index <- createDataPartition(boston$medv, p = 0.7, list = FALSE)
+
+boston_train <- boston[index, ]
+
+boston_test <- boston[-index, ]
+```
+
+```{r}
+set.seed(208)   # set seed
+
+# create recipe and blueprint, prepare and apply blueprint
+
+blueprint <- recipe(medv ~ ., data = boston_train) %>%
+  step_impute_mean(nox, dis) %>% 
+  step_normalize(all_numeric(), -all_outcomes()) %>% 
+  step_dummy(chas)
+
+prepare <- prep(blueprint, training = boston_train)
+
+baked_train <- bake(prepare, new_data = boston_train)
+
+baked_test <- bake(prepare, new_data = boston_test)
+```
+
+## <span style="color:blue">Practice - Regression</span>
+
+```{r}
+set.seed(208)   # set seed
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1)   # CV specifications
+```
+
+```{r}
+set.seed(208)
+
+# linear regression
+lm_cv <- train(blueprint,
+               data = boston_train, 
+               method = "lm",
+               trControl = cv_specs,
+               metric = "RMSE")
+```
+
+```{r}
+set.seed(208)   
+
+lambda_grid <- 10^seq(-3, 3, length = 100)   # grid of lambda values to search over
+
+lasso_cv <- train(blueprint,
+                   data = boston_train,
+                   method = "glmnet",   # for lasso
+                   trControl = cv_specs,
+                   tuneGrid = expand.grid(alpha = 1, lambda = lambda_grid),  # alpha = 1 implements lasso
+                   metric = "RMSE")
+```
+
+
+## <span style="color:blue">Practice - Regression</span> {.smaller}
+
+```{r}
+set.seed(208)
+
+# KNN
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv <- train(blueprint,
+                data = boston_train, 
+                method = "knn",
+                trControl = cv_specs,
+                tuneGrid = k_grid,
+                metric = "RMSE")
+```
+
+```{r}
+set.seed(208)
+
+# single regression tree
+tree_cv <- train(blueprint,
+                 data = boston_train,
+                 method = "rpart",
+                 trControl = cv_specs,
+                 tuneLength = 20,
+                 metric = "RMSE")
+```
+
+```{r}
+set.seed(208)
+
+# bagging
+bag_fit <- bagging(medv ~ ., 
+                   data = baked_train,
+                   nbagg = 500,
+                   coob = TRUE, 
+                   control = rpart.control(minsplit = 2, cp = 0, xval = 0))
+```
+
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+set.seed(208)
+
+# random forest
+param_grid_rf <- expand.grid(mtry = seq(1, 12, 1),    # for random forest
+                             splitrule = "variance",
+                             min.node.size = 2)
+
+rf_cv <- train(blueprint,
+               data = boston_train,
+               method = "ranger",
+               trControl = cv_specs,
+               tuneGrid = param_grid_rf,
+               metric = "RMSE")
+```
+
+```{r}
+set.seed(208)
+
+# gradient boosting
+out <- capture.output(gbm_cv <- train(blueprint,
+                data = boston_train,
+                method = "gbm",  
+                trControl = cv_specs,
+                tuneLength = 5,
+                metric = "RMSE"))
+
+```
+
+## <span style="color:blue">Practice - Regression</span> 
+
+
+```{r}
+# optimal CV Accuracies
+
+min(lm_cv$results$RMSE)
+
+min(lasso_cv$results$RMSE)
+
+min(knn_cv$results$RMSE)
+
+min(tree_cv$results$RMSE)
+```
+
+
+## <span style="color:blue">Practice - Regression</span>
+
+```{r}
+# optimal CV Accuracies
+
+bag_fit$err
+
+min(rf_cv$results$RMSE)
+
+min(gbm_cv$results$RMSE)
+
+```
+\
+\
+
+
+**Random forest results in the best RMSE.**
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+# optimal hyperparameters
+
+lasso_cv$bestTune
+
+knn_cv$bestTune
+
+tree_cv$bestTune
+```
+
+
+## <span style="color:blue">Practice - Regression</span>
+
+```{r}
+# optimal hyperparameters
+
+rf_cv$bestTune
+
+gbm_cv$bestTune
+
+```
+
+
+## <span style="color:blue">Practice - Regression</span> 
+
+```{r}
+set.seed(208)
+
+# build final model
+
+final_model <- ranger(formula = medv ~ .,
+                      data = baked_train,
+                      num.trees = 500,
+                      mtry = rf_cv$bestTune$mtry,
+                      splitrule = "variance",
+                      min.node.size = 2,
+                      importance = "impurity")
+
+```
+
+```{r}
+# obtain predictions on test data
+
+final_model_preds <- predict(final_model, data = baked_test, type = "response")  
+
+sqrt(mean((final_model_preds$predictions - baked_test$medv)^2))   # test set RMSE
+```
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+You will work with the **`Sonar`** data from the **`mlbench`** package. 
+
+The task is to predict **`Class`** ('R' if the object is a rock and 'M' if it is a mine (metal cylinder)) using the rest of the variables as predictors.
+
+* Use a 70-30 split.
+
+* Use 5-fold CV with 1 repeat.
+
+* Parameter grids are in Rmd file.
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+library(mlbench)   # load library
+
+data(Sonar)     # load dataset
+```
+
+```{r, eval=FALSE}
+glimpse(Sonar)   # all features are numerical (output not displayed here)
+```
+
+```{r}
+sum(is.na(Sonar))  # no missing entries
+```
+
+```{r, eval=FALSE}
+nearZeroVar(Sonar, saveMetrics = TRUE)   # no zv/nzv features (output not displayed here)
+```
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)   # set seed
+
+# split the data into training and test sets
+index <- createDataPartition(Sonar$Class, p = 0.7, list = FALSE)
+
+Sonar_train <- Sonar[index, ]
+
+Sonar_test <- Sonar[-index, ]
+```
+\
+\
+
+**A blueprint is not required for this dataset since the features already seem centered and scaled, and there are no other feature engineering steps to implement.**
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)   # set seed
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1)   # CV specifications
+```
+
+```{r}
+set.seed(208)
+
+# logistic regression
+logistic_cv <- train(Class ~ .,
+                     data = Sonar_train, 
+                     method = "glm",
+                     family = "binomial",
+                     trControl = cv_specs,
+                     metric = "Accuracy")
+```
+
+```{r}
+set.seed(208)
+
+# KNN
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_cv <- train(Class ~ .,
+                data = Sonar_train, 
+                method = "knn",
+                trControl = cv_specs,
+                tuneGrid = k_grid,
+                metric = "Accuracy")
+```
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)
+
+# single classification tree
+tree_cv <- train(Class ~ .,
+                 data = Sonar_train,
+                 method = "rpart",
+                 trControl = cv_specs,
+                 tuneLength = 20,
+                 metric = "Accuracy")
+```
+
+```{r}
+set.seed(208)
+
+# bagging
+bag_fit <- bagging(Class ~ ., 
+                   data = Sonar_train,
+                   nbagg = 500,
+                   coob = TRUE, 
+                   control = rpart.control(minsplit = 2, cp = 0, xval = 0))
+```
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)
+
+# random forest
+param_grid_rf <- expand.grid(mtry = seq(1, 30, 1),    # for random forest
+                             splitrule = "gini",
+                             min.node.size = 2)
+
+rf_cv <- train(Class ~ .,
+               data = Sonar_train,
+               method = "ranger",
+               trControl = cv_specs,
+               tuneGrid = param_grid_rf,
+               metric = "Accuracy")
+```
+
+```{r}
+set.seed(208)
+
+# gradient boosting
+out <- capture.output(gbm_cv <- train(Class ~ .,
+                data = Sonar_train,
+                method = "gbm",  
+                trControl = cv_specs,
+                tuneLength = 5,
+                metric = "Accuracy"))
+```
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)   
+
+# SVM with linear kernel
+
+param_grid_linear <- expand.grid(C = c(0.001, 0.1, 1, 5, 10, 100))
+
+svc_cv <- train(Class ~ .,
+                data = Sonar_train,
+                method = "svmLinear",
+                trControl = cv_specs,
+                tuneGrid = param_grid_linear,
+                metric = "Accuracy")
+```
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)   
+
+# SVM with polynomial kernel
+
+param_grid_poly <- expand.grid(degree = c(1, 2, 3, 4),
+                               scale = c(0.5, 1, 1.5, 2),
+                               C = c(0.001, 0.1, 1, 5, 10, 100))
+
+svm_poly_cv <- train(Class ~ .,
+                     data = Sonar_train,
+                     method = "svmPoly",
+                     trControl = cv_specs,
+                     tuneGrid = param_grid_poly,
+                     metric = "Accuracy")
+```
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)   
+
+# SVM with radial basis function kernel
+
+param_grid_radial <- expand.grid(sigma = c(0.5, 1, 1.5, 2),
+                                 C = c(0.001, 0.1, 1, 5, 10, 100))
+
+svm_radial_cv <- train(Class ~ .,
+                       data = Sonar_train,
+                       method = "svmRadial",
+                       tuneGrid = param_grid_radial,
+                       trControl = cv_specs,
+                       metric = "Accuracy")
+```
+
+
+## <span style="color:blue">Practice - Classification</span> {.smaller}
+
+```{r}
+# optimal CV Accuracies
+
+max(logistic_cv$results$Accuracy)
+
+max(knn_cv$results$Accuracy)
+
+max(tree_cv$results$Accuracy)
+
+1- bag_fit$err
+
+max(rf_cv$results$Accuracy)
+
+max(gbm_cv$results$Accuracy)
+```
+
+## <span style="color:blue">Practice - Classification</span>
+
+```{r}
+# optimal CV Accuracies
+
+max(svc_cv$results$Accuracy)   
+
+max(svm_poly_cv$results$Accuracy)  
+
+max(svm_radial_cv$results$Accuracy)    
+```
+\
+\
+
+**Gradient boosting results in the best accuracy.**
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+# optimal hyperparameters
+
+knn_cv$bestTune
+
+tree_cv$bestTune
+
+rf_cv$bestTune
+
+gbm_cv$bestTune
+```
+
+## <span style="color:blue">Practice - Classification</span>
+
+```{r}
+# optimal hyperparameters
+
+svc_cv$bestTune     
+
+svm_poly_cv$bestTune    
+
+svm_radial_cv$bestTune   
+```
+
+
+## <span style="color:blue">Practice - Classification</span> 
+
+```{r}
+set.seed(208)  
+
+# build final model
+
+final_model <- gbm(formula = ifelse(Class == "M", 0, 1) ~ .,
+                   data = Sonar_train,
+                   n.trees = gbm_cv$bestTune$n.trees,
+                   interaction.depth = gbm_cv$bestTune$interaction.depth,
+                   n.minobsinnode = gbm_cv$bestTune$n.minobsinnode,
+                   shrinkage = gbm_cv$bestTune$shrinkage)
+```
+
+```{r}
+# obtain predictions on test data
+
+final_model_prob_preds <- predict(final_model, newdata = Sonar_test, type = "response")  # probability predictions
+
+threshold <- 0.5 # set threshold
+
+final_model_class_preds <- ifelse(final_model_prob_preds > threshold, 1, 0)  # class label predictions
+```
+
+
+## <span style="color:blue">Practice - Classification</span> {.smaller}
+
+```{r}
+# confusion matrix
+
+confusionMatrix(data = factor(final_model_class_preds), reference = factor(ifelse(Sonar_test$Class == "M", 0, 1)))
+```
+
+

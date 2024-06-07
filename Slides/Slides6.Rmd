@@ -1,0 +1,988 @@
+---
+title: 'CMSC/LING/STAT 208: Machine Learning'
+author: "Abhishek Chakraborty [Much of the content in these slides have been adapted from *ISLR2* by James et al. and *HOMLR* by Boehmke & Greenwell]"
+output: ioslides_presentation
+#output: pdf_document
+#output: html_document
+# output: beamer_presentation
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+# library(ggformula)
+library(gridExtra)
+# library(ISLR2)
+# library(knitr)
+# library(MASS)
+library(caret)
+# library(pROC)
+library(recipes)
+library(vip)
+```
+
+<style>
+  .col2 {
+    columns: 2 200px;         /* number of columns and width in pixels*/
+    -webkit-columns: 2 200px; /* chrome, safari */
+    -moz-columns: 2 200px;    /* firefox */
+  }
+  .col3 {
+    columns: 3 100px;
+    -webkit-columns: 3 100px;
+    -moz-columns: 3 100px;
+  }
+</style>
+
+
+## <span style="color:blue">Your Turn!!!</span> {.smaller}
+
+You will work with a dataset containing information on employee attrition. Please load the dataset using the code below.
+
+```{r}
+attrition <- readRDS("attrition.rds")
+```
+
+
+**Objective**: The task is to predict `Attrition` (Yes/No) using the rest of the variables in the data (predictors/features).
+
+
+* **Step 1**: Investigate the dataset
+
+    - What are the types of features? - categorical or numeric
+    
+    - If categorical, are they ordinal or nominal? If ordinal, are their levels in appropriate order? You can use the `levels` function to check the ordering.
+    
+    - Are there any features with missing entries?
+    
+    - Are there any zv/nzv features?
+    
+* **Step 2**: Split the data into training and test sets (70-30 split)
+
+* **Step 3**: Perform required data preprocessing and create the blueprint. If using `step_dummy()`, set `one_hot = FALSE`.
+
+* **Step 4**: Implement 5-fold CV (1 repeat) to compare the performance of the following models. Use `metric = "Accuracy"`.
+
+    - a logistic regression model (`method = "glm"` and `family = "binomial"`)
+    
+    - a KNN classifier with the optimal `K` chosen by CV (`method = "knn"`). Use a grid of `K` values $1, 2, \ldots, 10$.
+    
+What is the optimal `K` chosen? How do the models compare in terms of the CV accuracies?
+
+* **Step 5**: Build your final optimal model. Obtain probability and class label predictions for the test set (use threshold of 0.5). Create the corresponding confusion matrix and report the test set accuracy. Also, create the ROC curve for the optimal model and report the AUC.
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 1 {.smaller}
+
+```{r}
+glimpse(attrition)   # types of variables
+```
+
+Numerical variables are represented as `<int>`, categorical variables are represented as `<fct>`.
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 1 
+
+```{r}
+# checking the levels of ordinal variables
+
+levels(attrition$BusinessTravel)
+levels(attrition$Education)
+levels(attrition$EnvironmentSatisfaction)
+levels(attrition$JobInvolvement)
+```
+
+## <span style="color:blue">Your Turn!!!</span> Step 1 
+
+
+```{r}
+# checking the levels of ordinal variables
+
+levels(attrition$JobSatisfaction)
+levels(attrition$PerformanceRating)
+levels(attrition$RelationshipSatisfaction)
+levels(attrition$WorkLifeBalance)
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 1
+
+```{r}
+# reorder levels of 'BusinessTravel'
+
+attrition$BusinessTravel <- factor(attrition$BusinessTravel, levels = c("Non-Travel", "Travel_Rarely", "Travel_Frequently"))
+
+levels(attrition$BusinessTravel)
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 1
+
+```{r}
+sum(is.na(attrition))  # no missing entries
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 1 {.smaller}
+
+
+```{r}
+nearZeroVar(attrition, saveMetrics = TRUE)  # no zv/nzv features
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 2
+
+```{r}
+# split data
+
+set.seed(042324)
+
+train_index <- createDataPartition(attrition$Attrition, p = 0.7, list = FALSE)
+
+attrition_train <- attrition[train_index, ]
+
+attrition_test <- attrition[-train_index, ]
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 3
+
+```{r}
+# create recipe, blueprint, prepare, and bake
+
+attrition_recipe <- recipe(formula = Attrition ~ ., data = attrition_train)   # sets up the type and role of variables
+
+
+blueprint <- attrition_recipe %>%
+  
+  # convert ordinal categorical features to integers
+  step_integer(BusinessTravel, Education, EnvironmentSatisfaction, JobInvolvement,
+               JobSatisfaction, PerformanceRating, RelationshipSatisfaction,
+               WorkLifeBalance) %>%
+  
+  # center and scale features
+  step_center(all_numeric()) %>%
+  step_scale(all_numeric()) %>%
+  
+  # create dummy variables for nominal categorical features
+  step_dummy(all_nominal(), -all_outcomes(), one_hot = FALSE)
+
+
+prepare <- prep(blueprint, data = attrition_train)    # estimate feature engineering parameters based on training data
+
+
+baked_train <- bake(prepare, new_data = attrition_train)   # apply the blueprint to training data for building final/optimal model
+
+baked_test <- bake(prepare, new_data = attrition_test)    # apply the blueprint to test data for future use
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller}
+
+```{r}
+# perform CV
+
+set.seed(042324)
+
+cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1)   # 5-fold CV (1 repeat)
+
+
+# CV with logistic regression
+
+logistic_fit <- train(blueprint,
+                  data = attrition_train,
+                  method = "glm",
+                  family = "binomial",
+                  trControl = cv_specs,
+                  metric = "Accuracy")
+
+logistic_fit
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller}
+
+```{r}
+# CV with KNN
+
+set.seed(042324)
+
+k_grid <- expand.grid(k = seq(1, 10, by = 1))
+
+knn_fit <- train(blueprint,
+                  data = attrition_train,
+                  method = "knn",
+                  trControl = cv_specs,
+                  tuneGrid = k_grid,
+                  metric = "Accuracy")
+
+knn_fit
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 4
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+ggplot(knn_fit)
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 5
+
+```{r}
+# build final optimal model and obtain predictions on test set
+
+final_model <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model
+
+final_model_prob_preds <- predict(object = final_model, newdata = baked_test, type = "response")   # probability predictions on test data
+
+threshold <- 0.5
+
+final_model_class_preds <- factor(ifelse(final_model_prob_preds > threshold, "Yes", "No"))   # class label predictions on test data
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller}
+
+```{r}
+# create confusion matrix
+
+confusionMatrix(data = final_model_class_preds, reference = baked_test$Attrition, positive = "Yes")
+```
+
+
+## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller}
+
+```{r, fig.align='center', fig.height=6, fig.width=8}
+# create ROC cuvre and compute AUC
+
+library(pROC)
+
+roc_object <- roc(response = baked_test$Attrition, predictor = final_model_prob_preds)
+
+plot(roc_object, col = "red")
+
+auc(roc_object)
+```
+
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- glimpse(attrition)   # types of variables -->
+<!-- ``` -->
+
+<!-- Numerical variables are represented as `<int>`, categorical variables are represented as `<fct>`. -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1  -->
+
+<!-- ```{r} -->
+<!-- # checking the levels of ordinal variables -->
+
+<!-- levels(attrition$BusinessTravel) -->
+<!-- levels(attrition$Education) -->
+<!-- levels(attrition$EnvironmentSatisfaction) -->
+<!-- levels(attrition$JobInvolvement) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1  -->
+
+
+<!-- ```{r} -->
+<!-- # checking the levels of ordinal variables -->
+
+<!-- levels(attrition$JobSatisfaction) -->
+<!-- levels(attrition$PerformanceRating) -->
+<!-- levels(attrition$RelationshipSatisfaction) -->
+<!-- levels(attrition$WorkLifeBalance) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1 -->
+
+<!-- ```{r} -->
+<!-- # reorder levels of 'BusinessTravel' -->
+
+<!-- attrition$BusinessTravel <- factor(attrition$BusinessTravel, levels = c("Non-Travel", "Travel_Rarely", "Travel_Frequently")) -->
+
+<!-- levels(attrition$BusinessTravel) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1 -->
+
+<!-- ```{r} -->
+<!-- sum(is.na(attrition))  # no missing entries -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 1 {.smaller} -->
+
+
+<!-- ```{r} -->
+<!-- nearZeroVar(attrition, saveMetrics = TRUE)  # no zv/nzv features -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 2 -->
+
+<!-- ```{r} -->
+<!-- # split data -->
+
+<!-- set.seed(042324) -->
+
+<!-- train_index <- createDataPartition(attrition$Attrition, p = 0.7, list = FALSE) -->
+
+<!-- attrition_train <- attrition[train_index, ] -->
+
+<!-- attrition_test <- attrition[-train_index, ] -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 3 -->
+
+<!-- ```{r} -->
+<!-- # create recipe, blueprint, prepare, and bake -->
+
+<!-- attrition_recipe <- recipe(formula = Attrition ~ ., data = attrition_train)   # sets up the type and role of variables -->
+
+
+<!-- blueprint <- attrition_recipe %>% -->
+<!--   step_integer(BusinessTravel, Education, EnvironmentSatisfaction, JobInvolvement, -->
+<!--                JobSatisfaction, PerformanceRating, RelationshipSatisfaction, -->
+<!--                WorkLifeBalance) %>% -->
+<!--   step_center(all_numeric()) %>% -->
+<!--   step_scale(all_numeric()) %>% -->
+<!--   step_dummy(all_nominal(), -all_outcomes(), one_hot = FALSE) -->
+
+
+<!-- prepare <- prep(blueprint, data = attrition_train)    # estimate feature engineering parameters based on training data -->
+
+
+<!-- baked_train <- bake(prepare, new_data = attrition_train)   # apply the blueprint to training data for building final/optimal model -->
+
+<!-- baked_test <- bake(prepare, new_data = attrition_test)    # apply the blueprint to test data for future use -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # perform CV -->
+
+<!-- set.seed(042324) -->
+
+<!-- cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1)   # 5-fold CV (no repeats) -->
+
+
+<!-- # CV with logistic regression -->
+
+<!-- logistic_fit <- train(blueprint, -->
+<!--                   data = attrition_train, -->
+<!--                   method = "glm", -->
+<!--                   family = "binomial", -->
+<!--                   trControl = cv_specs, -->
+<!--                   metric = "Accuracy") -->
+
+<!-- logistic_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # CV with KNN -->
+
+<!-- set.seed(042324) -->
+
+<!-- k_grid <- expand.grid(k = seq(1, 10, by = 1)) -->
+
+<!-- knn_fit <- train(blueprint, -->
+<!--                   data = attrition_train, -->
+<!--                   method = "knn", -->
+<!--                   trControl = cv_specs, -->
+<!--                   tuneGrid = k_grid, -->
+<!--                   metric = "Accuracy") -->
+
+<!-- knn_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- ggplot(knn_fit) -->
+<!-- ``` -->
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 3 -->
+
+<!-- ```{r} -->
+<!-- # create recipe, blueprint, prepare, and bake -->
+
+<!-- attrition_recipe <- recipe(formula = Attrition ~ ., data = upsampledTrain)   # sets up the type and role of variables -->
+
+
+<!-- blueprint <- attrition_recipe %>% -->
+<!--   step_integer(BusinessTravel, Education, EnvironmentSatisfaction, JobInvolvement, -->
+<!--                JobSatisfaction, PerformanceRating, RelationshipSatisfaction, -->
+<!--                WorkLifeBalance) %>% -->
+<!--   step_center(all_numeric()) %>% -->
+<!--   step_scale(all_numeric()) %>% -->
+<!--   step_dummy(all_nominal(), -all_outcomes(), one_hot = FALSE) -->
+
+
+<!-- prepare <- prep(blueprint, data = upsampledTrain)    # estimate feature engineering parameters based on training data -->
+
+
+<!-- baked_train <- bake(prepare, new_data = upsampledTrain)   # apply the blueprint to training data for building final/optimal model -->
+
+<!-- baked_test <- bake(prepare, new_data = attrition_test)    # apply the blueprint to test data for future use -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # perform CV -->
+
+<!-- set.seed(042324) -->
+
+<!-- cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1, classProbs = TRUE,    -->
+<!--                          summaryFunction = twoClassSummary)   # 5-fold CV (1 repeat) -->
+
+
+<!-- # CV with logistic regression -->
+
+<!-- logistic_fit <- train(blueprint, -->
+<!--                   data = upsampledTrain, -->
+<!--                   method = "glm", -->
+<!--                   family = "binomial", -->
+<!--                   trControl = cv_specs, -->
+<!--                   metric = "Sens") -->
+
+<!-- logistic_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # CV with KNN -->
+
+<!-- set.seed(042324) -->
+
+<!-- k_grid <- expand.grid(k = seq(1, 10, by = 1)) -->
+
+<!-- knn_fit <- train(blueprint, -->
+<!--                   data = upsampledTrain, -->
+<!--                   method = "knn", -->
+<!--                   trControl = cv_specs, -->
+<!--                   tuneGrid = k_grid, -->
+<!--                   metric = "Sens") -->
+
+<!-- knn_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- ggplot(knn_fit) -->
+<!-- ``` -->
+
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 -->
+
+<!-- ```{r} -->
+<!-- # build final optimal model and obtain predictions on test set -->
+
+<!-- final_model <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model -->
+
+<!-- final_model_prob_preds <- predict(object = final_model, newdata = baked_test, type = "response")   # probability predictions on test data -->
+
+<!-- threshold <- 0.5 -->
+
+<!-- final_model_class_preds <- factor(ifelse(final_model_prob_preds > threshold, "Yes", "No"))   # class label predictions on test data -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # create confusion matrix -->
+
+<!-- confusionMatrix(data = relevel(final_model_class_preds, ref = "Yes"), -->
+<!--                 reference = relevel(baked_test$Attrition, ref = "Yes")) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # create confusion matrix -->
+
+<!-- confusionMatrix(data = final_model_class_preds, reference = baked_test$Attrition, positive = "Yes") -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- # create ROC cuvre and compute AUC -->
+
+<!-- library(pROC) -->
+
+<!-- roc_object <- roc(response = baked_test$Attrition, predictor = final_model_prob_preds) -->
+
+<!-- plot(roc_object, col = "red") -->
+
+<!-- auc(roc_object) -->
+<!-- ``` -->
+
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # perform CV -->
+
+<!-- set.seed(042324) -->
+
+<!-- cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 1, classProbs = TRUE,    -->
+<!--                          summaryFunction = twoClassSummary)   # 5-fold CV (1 repeat) -->
+
+
+<!-- # CV with logistic regression -->
+
+<!-- logistic_fit <- train(blueprint, -->
+<!--                   data = attrition_train, -->
+<!--                   method = "glm", -->
+<!--                   family = "binomial", -->
+<!--                   trControl = cv_specs, -->
+<!--                   metric = "Sens") -->
+
+<!-- logistic_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # CV with KNN -->
+
+<!-- set.seed(042324) -->
+
+<!-- k_grid <- expand.grid(k = seq(1, 10, by = 1)) -->
+
+<!-- knn_fit <- train(blueprint, -->
+<!--                   data = attrition_train, -->
+<!--                   method = "knn", -->
+<!--                   trControl = cv_specs, -->
+<!--                   tuneGrid = k_grid, -->
+<!--                   metric = "Sens") -->
+
+<!-- knn_fit -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 4 -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- ggplot(knn_fit) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 -->
+
+<!-- ```{r} -->
+<!-- # build final optimal model and obtain predictions on test set -->
+
+<!-- final_model <- glm(Attrition ~ ., data = baked_train, family = binomial)    # build final model -->
+
+<!-- final_model_prob_preds <- predict(object = final_model, newdata = baked_test, type = "response")   # probability predictions on test data -->
+
+<!-- threshold <- 0.5 -->
+
+<!-- final_model_class_preds <- factor(ifelse(final_model_prob_preds > threshold, "Yes", "No"))   # class label predictions on test data -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 -->
+
+<!-- ```{r} -->
+<!-- # build final optimal model and obtain predictions on test set -->
+
+<!-- final_model <- knn3(Attrition ~ ., data = baked_train, k = knn_fit$bestTune$k)    # build final model -->
+
+<!-- final_model_prob_preds <- predict(object = final_model, newdata = baked_test, type = "prob")   # probability predictions on test data -->
+
+<!-- threshold <- 0.5 -->
+
+<!-- final_model_class_preds <- factor(ifelse(final_model_prob_preds[,2] > threshold, "Yes", "No"))   # class label predictions on test data -->
+<!-- ``` -->
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # create confusion matrix -->
+
+<!-- confusionMatrix(data = relevel(final_model_class_preds, ref = "Yes"), -->
+<!--                 reference = relevel(baked_test$Attrition, ref = "Yes")) -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r} -->
+<!-- # create confusion matrix -->
+
+<!-- confusionMatrix(data = final_model_class_preds, reference = baked_test$Attrition, positive = "Yes") -->
+<!-- ``` -->
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- # create ROC cuvre and compute AUC -->
+
+<!-- library(pROC) -->
+
+<!-- roc_object <- roc(response = baked_test$Attrition, predictor = final_model_prob_preds) -->
+
+<!-- plot(roc_object, col = "red") -->
+
+<!-- auc(roc_object) -->
+<!-- ``` -->
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> Step 5 {.smaller} -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- # create ROC cuvre and compute AUC -->
+
+<!-- library(pROC) -->
+
+<!-- roc_object <- roc(response = baked_test$Attrition, predictor = final_model_prob_preds[,2]) -->
+
+<!-- plot(roc_object, col = "red") -->
+
+<!-- auc(roc_object) -->
+<!-- ``` -->
+
+
+<!-- ## Linear Model Selection and Regularization -->
+
+<!-- The standard linear model, -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '60%'} -->
+<!-- knitr::include_graphics("EFT/e6.1.png") -->
+<!-- ``` -->
+
+<!-- * **Benefits**: Simple, interpretable, often shows good predictive performance. -->
+
+<!-- * **Limitations**: -->
+
+<!--   - **Prediction Accuracy**: If $n$ is not big (also when $p>n$), variance can be high resulting in overfitting and poor predictive performance. -->
+
+<!--   - **Model Interpretability**: Irrelevant features lead to unnecessary model complexity. -->
+
+
+<!-- ## Alternatives to Least Squares -->
+
+<!-- Extensions/Modifications/Improvements to Least Squares: -->
+
+<!-- * **Subset Selection**: Identify a subset of $p$ predictors and then fit a linear model using least squares. -->
+
+<!-- * **Shrinkage/Regularization**: Fit a model using $p$ predictors, but shrink some of the estimated coefficients towards zero. Reduces variance and can also perform variable selection. -->
+
+<!-- * **Dimension Reduction**: Project $p$ predictors onto a $M$-dimensional subspace, where $M<p$. Achieved by computing $M$ different linear combinations or projections of the $p$ predictors. Fit a linear model using these $M$ predictors by least squares. -->
+
+
+<!-- ## Shrinkage/Regularization Methods -->
+
+<!-- Fit a model containing all $p$ predictors using a technique that **shrinks** the coefficient estimates towards zero. -->
+
+<!-- * Ridge Regression -->
+
+<!-- * Lasso -->
+
+<!-- **Shrinking the coefficient estimates significantly reduces their variance.** -->
+
+
+<!-- ## The Lasso {.smaller} -->
+
+<!-- Acronym for **Least Absolute Shrinkage and Selection Operator**. -->
+
+<!-- * **Standard Linear Model** -->
+
+<!-- Given a training dataset, for $i=1,\ldots,n$ -->
+
+<!-- $$\hat{y}_i=b_0+b_1 x_{i1}+ \ldots + b_p x_{ip}$$ -->
+
+<!-- $$y_i=b_0+\beta_1 x_{i1}+ \ldots + \beta_p x_{ip} + \epsilon_i = \beta_0 + \displaystyle \sum_{j=1}^p \beta_j x_{ij} + \epsilon_i$$ -->
+
+<!-- ```{r , echo=FALSE,  fig.align='center', out.width = '30%'} -->
+<!-- knitr::include_graphics("EFT/e6.45.png") -->
+<!-- ``` -->
+
+<!-- $$\text{SSE} = \displaystyle \sum_{i=1}^{n} \bigg(y_i - \hat{y}_i\bigg)^2 = \displaystyle \sum_{i=1}^{n} \bigg(y_i - (b_0+b_1 x_{i1}+ \ldots + b_p x_{ip})\bigg)^2 $$ -->
+
+<!-- * **Lasso** -->
+
+<!-- Lasso is a relatively recent alternative to ridge regression that overcomes the disadvantage. -->
+
+<!-- ```{r , echo=FALSE, fig.align='center', out.width = '60%'} -->
+<!-- knitr::include_graphics("EFT/e6.7.png") -->
+<!-- ``` -->
+
+<!-- $$\displaystyle \text{SSE} + \lambda \sum_{j=1}^{p} |b_j|$$ -->
+
+<!-- * $\lambda \displaystyle \sum_{j=1}^{p} |b_j|$: **Shrinkage Penalty** -->
+
+<!-- * $\lambda \ge 0$: **Tuning/Regularization Parameter** -->
+
+
+<!-- ```{r , echo=FALSE, out.width = '25%'} -->
+<!-- knitr::include_graphics("EFT/l1.png") -->
+<!-- ``` -->
+
+<!-- ## The Lasso -->
+
+<!-- * Like ridge regression, the lasso shrinks the coefficient estimates towards zero. -->
+
+<!-- * However, in the case of the lasso, the $l_1$ penalty forces some of the coefficient estimates to be -->
+<!-- exactly equal to zero when the tuning parameter $\lambda$ is sufficiently large. -->
+
+<!-- * This method not only shrinks the coefficient estimates towards zero, but also makes some of the coefficient estimates exactly equal to zero (when the tuning parameter $\lambda$ is sufficiently large). -->
+
+<!-- * Hence, the lasso performs **variable selection**. -->
+
+<!-- much like best subset selection,  -->
+
+<!-- * We say that the lasso yields **sparse models**, that is, models that involve only a subset of the variables. -->
+
+
+<!-- ## The Lasso: Scaling of Predictors -->
+
+<!-- * Standard least squares (regression) coefficient estimates are **scale equivariant**: multiplying $X_j$ by a constant $c$ simply leads to a scaling of the least squares coefficient estimates by a factor of $1/c$. In other words, regardless of how the $j^{th}$ predictor is scaled, $X_j \hat{\beta}_j$ will remain the same. -->
+
+<!-- * In contrast, the lasso coefficient estimates can change substantially when multiplying a given predictor by a constant. Apply lasso after **standardizing** the predictors. -->
+
+<!-- ```{r , echo=FALSE, fig.align='center', out.width = '50%'} -->
+<!-- knitr::include_graphics("EFT/e6.6.png") -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- ```{r} -->
+<!-- ames <- readRDS("AmesHousing.rds")   # load dataset -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # reorder levels of 'Overall_Qual' -->
+<!-- ames$Overall_Qual <- factor(ames$Overall_Qual, levels = c("Very_Poor", "Poor", "Fair", "Below_Average",  -->
+<!--                                                           "Average", "Above_Average", "Good", "Very_Good",  -->
+<!--                                                           "Excellent", "Very_Excellent")) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # split data -->
+
+<!-- set.seed(043024)   # set seed -->
+
+<!-- train_index <- createDataPartition(y = ames$Sale_Price, p = 0.7, list = FALSE)   # consider 70-30 split -->
+
+<!-- ames_train <- ames[train_index,]   # training data -->
+
+<!-- ames_test <- ames[-train_index,]   # test data -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- ```{r} -->
+<!-- # create recipe and blueprint, prepare and apply blueprint -->
+
+<!-- set.seed(043024)   # set seed -->
+
+<!-- ames_recipe <- recipe(Sale_Price ~ ., data = ames_train)   # set up recipe -->
+
+<!-- blueprint <- ames_recipe %>% -->
+<!--   step_nzv(Street, Utilities, Pool_Area, Screen_Porch, Misc_Val) %>%   # filter out zv/nzv predictors -->
+<!--   step_impute_mean(Gr_Liv_Area) %>%                                    # impute missing entries -->
+<!--   step_integer(Overall_Qual) %>%                                       # numeric conversion of levels of the predictors -->
+<!--   step_center(all_numeric(), -all_outcomes()) %>%                      # center (subtract mean) all numeric predictors -->
+<!--   step_scale(all_numeric(), -all_outcomes()) %>%                       # scale (divide by standard deviation) all numeric predictors -->
+<!--   step_other(Neighborhood, threshold = 0.01, other = "other") %>%      # lumping required predictors -->
+<!--   step_dummy(all_nominal(), one_hot = FALSE)                           # one-hot/dummy encode nominal categorical predictors -->
+
+
+<!-- prepare <- prep(blueprint, data = ames_train)    # estimate feature engineering parameters based on training data -->
+
+
+<!-- baked_train <- bake(prepare, new_data = ames_train)   # apply blueprint to training data -->
+
+<!-- baked_test <- bake(prepare, new_data = ames_test)    # apply blueprint to test data -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- Implement CV to tune the hyperparameter $\lambda$. -->
+
+<!-- ```{r} -->
+<!-- set.seed(043024)   # set seed -->
+
+<!-- cv_specs <- trainControl(method = "repeatedcv", number = 5, repeats = 5)   # CV specifications -->
+
+<!-- lambda_grid <- 10^seq(-3, 3, length = 100)   # grid of lambda values to search over -->
+
+<!-- library(glmnet)  # for LASSO -->
+
+<!-- lasso_cv <- train(blueprint, -->
+<!--                    data = ames_train, -->
+<!--                    method = "glmnet",   # for lasso -->
+<!--                    trControl = cv_specs, -->
+<!--                    tuneGrid = expand.grid(alpha = 1, lambda = lambda_grid),   # alpha = 1 implements lasso -->
+<!--                    metric = "RMSE") -->
+
+<!-- # results from the CV procedure -->
+
+<!-- lasso_cv$bestTune    # optimal lambda -->
+
+<!-- min(lasso_cv$results$RMSE)   # RMSE for optimal lambda -->
+
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- Results from the CV procedure. -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- ggplot(lasso_cv)   # lambda vs. RMSE plot -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- We will now build the optimal lasso model on the modified training data using the optimal $\lambda$. -->
+
+<!-- ```{r} -->
+<!-- # create datasets required for 'glmnet' function -->
+
+<!-- X_train <- model.matrix(Sale_Price ~ ., data = baked_train)[, -1]   # training features without intercept -->
+
+<!-- Y_train <- baked_train$Sale_Price    # training response -->
+
+<!-- X_test <- model.matrix(Sale_Price ~ ., data = baked_test)[, -1]   # test features without intercept -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- # build optimal lasso model -->
+
+<!-- final_model <- glmnet(x = X_train,  -->
+<!--                       y = Y_train, -->
+<!--                       alpha = 1,                      # alpha = 1 builds lasso model -->
+<!--                       lambda = lasso_cv$bestTune$lambda,   # using optimal lambda from CV -->
+<!--                       standardize = FALSE)     # we have already standardized during data preprocessing -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- # obtain predictions and test set RMSE -->
+
+<!-- final_model_preds <- predict(final_model, newx = X_test)    # obtain predictions -->
+
+<!-- sqrt(mean((final_model_preds - baked_test$Sale_Price)^2))   # calculate test set RMSE -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation {.smaller} -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- The coefficients for the optimal lasso model can be obtained from -->
+
+<!-- ```{r} -->
+<!-- coef(final_model)    # estimated coefficients from final lasso model -->
+<!-- ``` -->
+
+
+<!-- ## The Lasso: Implementation {.smaller} -->
+
+<!-- **Ames Housing Dataset** -->
+
+<!-- ```{r, fig.align='center', fig.height=6, fig.width=8} -->
+<!-- # variable importance -->
+
+<!-- vip(object = lasso_cv, num_features = 20, method = "model") -->
+<!-- ``` -->
+
+
+
+<!-- ## <span style="color:blue">Your Turn!!!</span> {.smaller} -->
+
+<!-- You will work with the **Hitters.rds** dataset. Please download the dataset from Canvas, upload it to Posit Cloud, and load it using the following code. -->
+
+<!-- ```{r} -->
+<!-- Hitters <- readRDS("Hitters.rds")   # load dataset -->
+<!-- ``` -->
+
+
+<!-- The dataset contains baseball statistics from the 1986 and 1987 seasons. The task is to predict `Salary` using the rest of the variables in the dataset. Compare the performance (in terms of **RMSE**) of the following two models: -->
+
+<!-- * A linear regression model; -->
+
+<!-- * A LASSO model chosen by CV. Consider the grid of possible $\lambda$ values as `lambda_grid <- 10^seq(-2, 2, length = 100)`. -->
+
+
+<!-- **Perform the following tasks.** -->
+
+<!-- * Investigate the dataset and complete any necessary tasks. -->
+
+<!-- * Split the data into training and test sets (80-20). -->
+
+<!-- * Perform required data preprocessing and create the blueprint. If using `step_dummy()`, set `one_hot = FALSE`. Prepare the blueprint on the training data. Obtain the modified training and test datasets. -->
+
+<!-- * Implement 5-fold CV repeated 5 times for each of the models above. -->
+
+<!-- * Report the optimal CV RMSE of each model. Report the optimal value of $\lambda$ for the LASSO model. Which model performs better in this situation? -->
+
+<!-- * Using the optimal model, obtain predictions on the test set. Calculate and report the test set RMSE. -->
+
+<!-- * Using the optimal model, obtain variable importance measures for the features. -->
+
+
+
+
+
+

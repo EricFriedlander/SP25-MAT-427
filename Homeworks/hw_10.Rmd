@@ -1,0 +1,164 @@
+---
+title: "Machine Learning - Homework 10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+
+### ----------------------------------------------------------------------------
+
+# Instructions
+
+**This homework will be graded on completion of all questions. Peer reviews are not required.** 
+
+
+# Objectives
+
+* Practice with PCA
+
+* Practice with clustering methods
+
+
+### ----------------------------------------------------------------------------
+
+For questions 1-3, we will work with the `NCI60` microarray dataset. The dataset contains expression levels on 6830 genes from 64 cancer cell lines.
+
+```{r}
+library(ISLR2)   # load package
+
+ncidata <- NCI60$data   # load dataset
+
+dim(ncidata)    # dimension of the dataset (number of rows x number of columns)
+```
+
+
+### ----------------------------------------------------------------------------
+
+## Question 1
+
+(a) Implement PCA on the standardized (centered and scaled) data. How many PCs are required to explain at least 75% of the overall variance?
+
+```{r}
+# write your R code here
+set.seed(10)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(b) Create a scree plot showing all the possible number of PCs. Suggest a suitable number of PCs for this data by examining the scree plot. [See help page of `screeplot` function to specify the number of components to be plotted]
+
+```{r}
+# write your R code here
+set.seed(10)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+### ----------------------------------------------------------------------------
+
+## Question 2
+
+Implement K-means clustering on the standardized (centered and scaled) `NCI60` microarray data with $K=4$ and 20 random initial configurations. What are the cluster sizes?
+
+```{r}
+# write your R code here
+set.seed(10)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+### ----------------------------------------------------------------------------
+
+## Question 3
+
+(a) Implement hierarchical clustering on the standardized (centered and scaled) `NCI60` microarray data using complete, single, and average linkages. Comment on how the dendrograms from the different linkage methods compare. [See help page of `hclust` function to specify the linkage method.]
+
+```{r}
+# write your R code here
+set.seed(10)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(b) Cut the dendrogram built with complete linkage to have 4 clusters. What are the cluster sizes?
+
+```{r}
+# write your R code here
+set.seed(10)
+
+
+
+```
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+(c) For this data, what are the minimum and maximum number of clusters `k` one can specify in the `cutree` function? What will be the corresponding cluster sizes? Explain.
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+### ----------------------------------------------------------------------------
+
+## Question 4
+
+Suppose you have a standardized data matrix $X$ with $n$ observations and $p$ features. What will be the total within-cluster variation (total within-cluster sum of squares) when you implement K-means with $K = n$? What will be the corresponding cluster sizes? Explain your answer.
+
+```{}
+# write your answer here
+
+
+
+```
+
+
+### ----------------------------------------------------------------------------

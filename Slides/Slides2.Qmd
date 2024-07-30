@@ -463,24 +463,44 @@ ggpairs(data = outlets)
 - Think of the MSE as a function of $\hat{\beta}_0$ and $\hat{\beta}_1$
   + $\text{MSE} = \frac{\sum (y_i - \hat{\beta}_0 - \hat{\beta}_1)}{n}$
 
-<!-- ```{r} -->
-<!-- #| echo: FALSE -->
+```{r}
+#| echo: FALSE
 
-<!-- centerb0 <- -4 -->
-<!-- centerb1 <- 1 -->
-<!-- grid <-  expand.grid(b0 = seq(from = -50 + centerb0, to = 50 + centerb0, by = 1), -->
-<!--                       b1 = seq(from = -100 + centerb1, to = 100 + centerb1, by = 1)) -->
+centerb0 <- -4
+centerb1 <- 1
+b0_width <- 500
+b1_width <- 50
 
-<!-- plot_axes <- tibble(b0 = seq(from = -50 + centerb0, to = 50 + centerb0, by = 1/2), -->
-<!--                       b1 = seq(from = -100 + centerb1, to = 100 + centerb1, by = 1)) -->
-<!-- grid <- tibble(grid) |>  -->
-<!--   rowwise() |>  -->
-<!--   mutate(MSE = sum((outlets$profit - b0 - b1*outlets$population)^2))  -->
-<!-- grid_mat <- xtabs(MSE ~ b0 + b1, data = grid) -->
+b0 <- seq(from = -b0_width + centerb0, to = b0_width + centerb0, by = b0_width/100)
+b1 <- seq(from = -b1_width + centerb1, to = b1_width + centerb1, by = b1_width/100)
 
-<!-- plot_ly(plot_axes, x = ~b0, y = ~b1) |>  -->
-<!--   add_surface(z = ~grid_mat) -->
-<!-- ``` -->
+grid <-  expand.grid(b0s=b0, b1s=b1)
+
+axy <- list(
+  range = c(min(b0), max(b0))
+)
+
+axx <- list(
+  range = c(min(b1),max(b1))
+)
+
+
+
+grid <- tibble(grid) |>
+  rowwise() |>
+  mutate(MSE = mean((outlets$profit - b0s - b1s*outlets$population)^2))
+min_val <- min(grid$MSE)
+max_val <- min_val+.04*diff(range(grid$MSE))
+axz <- list(
+  range = c(min_val,max_val)
+)
+
+grid_mat <- xtabs(MSE ~ b0s + b1s, data = grid)
+
+plot_ly(x = ~b1, y = ~b0) |>
+  add_surface(z = ~grid_mat, cmin=min_val, cmax=max_val, alpha = 0.7) |> 
+  layout(scene = list(xaxis=axx,yaxis=axy, zaxis=axz))
+```
 
 ## Gradient Descent Algorithm {.smaller}
 
